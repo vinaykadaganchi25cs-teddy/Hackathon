@@ -1,0 +1,667 @@
+/* ========================================
+   Active Pulse — App Controller
+   Navigation, initialization, coordination
+   ======================================== */
+
+window.ActivePulse = window.ActivePulse || {};
+
+window.ActivePulse.App = {
+  currentSection: 'hero',
+  monitoringActive: false,
+
+  init() {
+    const DM = window.ActivePulse.DataManager;
+    const SM = window.ActivePulse.SensorManager;
+    const RE = window.ActivePulse.RiskEngine;
+    const AE = window.ActivePulse.AnalyticsEngine;
+    const RW = window.ActivePulse.Rewards;
+
+    // Init all modules
+    DM.init();
+    SM.init();
+    RE.init();
+    AE.init();
+    if (RW) RW.init();
+
+    // Check login
+    this.checkLogin();
+
+    // Setup navigation
+    this.setupNav();
+
+    // Setup hero stats
+    this.populateHeroStats();
+
+    // Setup monitor controls
+    this.setupMonitor();
+
+    // Setup risk questionnaire
+    this.setupQuestionnaire();
+
+    // Mobile menu toggle
+    const toggle = document.getElementById('mobile-toggle');
+    if (toggle) {
+      toggle.addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('open');
+      });
+    }
+
+    // Navigate to hash or hero
+    const hash = window.location.hash.slice(1);
+    if (hash && document.getElementById(hash)) {
+      this.navigateTo(hash);
+    }
+  },
+
+  // === LOGIN ===
+  checkLogin() {
+    const savedUser = localStorage.getItem('activepulse_user');
+    const loginScreen = document.getElementById('login-screen');
+    if (savedUser) {
+      this.setLoggedIn(savedUser);
+      if (loginScreen) loginScreen.classList.add('hidden-login');
+      return;
+    }
+    // Setup login buttons
+    const googleBtn = document.getElementById('btn-google-login');
+    const guestBtn = document.getElementById('btn-guest-login');
+    const nameInput = document.getElementById('login-name');
+
+    if (googleBtn) googleBtn.addEventListener('click', () => {
+      const name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'User';
+      localStorage.setItem('activepulse_user', name);
+      this.setLoggedIn(name);
+      if (loginScreen) { loginScreen.style.animation = 'fadeIn .3s ease reverse'; setTimeout(() => loginScreen.classList.add('hidden-login'), 300); }
+    });
+    if (guestBtn) guestBtn.addEventListener('click', () => {
+      const name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'Guest';
+      localStorage.setItem('activepulse_user', name);
+      this.setLoggedIn(name);
+      if (loginScreen) { loginScreen.style.animation = 'fadeIn .3s ease reverse'; setTimeout(() => loginScreen.classList.add('hidden-login'), 300); }
+    });
+  },
+
+  setLoggedIn(name) {
+    const greet = document.getElementById('user-greeting');
+    const displayName = document.getElementById('user-display-name');
+    const avatar = document.getElementById('user-avatar');
+    if (greet) greet.classList.remove('hidden');
+    if (displayName) displayName.textContent = name;
+    if (avatar) avatar.textContent = name.charAt(0).toUpperCase();
+  },
+
+  setupNav() {
+    const items = document.querySelectorAll('.nav-item');
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        const section = item.dataset.section;
+        this.navigateTo(section);
+        // Close mobile menu
+        document.getElementById('sidebar').classList.remove('open');
+      });
+    });
+  },
+
+  navigateTo(sectionId) {
+    // Update sections
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById(sectionId);
+    if (target) target.classList.add('active');
+
+    // Update nav
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+    if (navItem) navItem.classList.add('active');
+
+    this.currentSection = sectionId;
+    window.location.hash = sectionId;
+
+    // Section-specific init
+    if (sectionId === 'dashboard') {
+      this.initDashboard();
+    } else if (sectionId === 'monitor') {
+      this.initMonitorView();
+    } else if (sectionId === 'insights') {
+      this.initInsights();
+    } else if (sectionId === 'rewards') {
+      this.initRewards();
+    }
+  },
+
+  // === HERO ===
+  populateHeroStats() {
+    const DM = window.ActivePulse.DataManager;
+    const avgs = DM.getWeeklyAverages();
+    const today = DM.getToday();
+
+    // Calculate waking sedentary hours (exclude sleep 0-5 AM)
+    const wakingSedentary = today.hours.filter(h => h.hour >= 6).reduce((s, h) => s + h.sedentaryMinutes, 0);
+    this.animateCounter('stat-sedentary-hours', 0, Math.round(wakingSedentary / 60 * 10) / 10, '', 'h today');
+    this.animateCounter('stat-steps', 0, avgs.avgSteps, '', ' avg/day');
+    this.animateCounter('stat-score', 0, avgs.avgScore, '', '/100');
+    this.animateCounter('stat-streak', 0, Math.round(today.summary.longestSedentaryStreak / 60 * 10) / 10, '', 'h longest');
+  },
+
+  animateCounter(id, start, end, prefix, suffix) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const duration = 1500;
+    const startTime = Date.now();
+    const isFloat = end % 1 !== 0;
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      const current = start + (end - start) * eased;
+      el.textContent = prefix + (isFloat ? current.toFixed(1) : Math.round(current).toLocaleString()) + suffix;
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+    animate();
+  },
+
+  // === MONITOR ===
+  setupMonitor() {
+    const SM = window.ActivePulse.SensorManager;
+    const btn = document.getElementById('btn-start-monitor');
+    const btnStop = document.getElementById('btn-stop-monitor');
+
+    if (btn) {
+      btn.addEventListener('click', () => this.startMonitoring());
+    }
+    if (btnStop) {
+      btnStop.addEventListener('click', () => this.stopMonitoring());
+    }
+
+    // Break notification callback
+    SM.onBreakNeeded = () => {
+      this.showBreakNotification();
+    };
+
+    // Data update callback
+    SM.onDataUpdate = (point) => {
+      this.updateMonitorUI(point);
+      window.ActivePulse.AnalyticsEngine.updateRealtimeChart(point);
+    };
+  },
+
+  initMonitorView() {
+    window.ActivePulse.AnalyticsEngine.createRealtimeChart();
+  },
+
+  startMonitoring() {
+    const SM = window.ActivePulse.SensorManager;
+    SM.startMonitoring();
+    this.monitoringActive = true;
+
+    const btn = document.getElementById('btn-start-monitor');
+    const btnStop = document.getElementById('btn-stop-monitor');
+    if (btn) btn.classList.add('hidden');
+    if (btnStop) btnStop.classList.remove('hidden');
+
+    const statusEl = document.getElementById('monitor-status-badge');
+    if (statusEl) statusEl.innerHTML = '<span class="status-dot yellow"></span> Detecting...';
+  },
+
+  stopMonitoring() {
+    const SM = window.ActivePulse.SensorManager;
+    SM.stopMonitoring();
+    this.monitoringActive = false;
+
+    const btn = document.getElementById('btn-start-monitor');
+    const btnStop = document.getElementById('btn-stop-monitor');
+    if (btn) btn.classList.remove('hidden');
+    if (btnStop) btnStop.classList.add('hidden');
+
+    const statusEl = document.getElementById('monitor-status-badge');
+    if (statusEl) {
+      statusEl.className = 'status-badge';
+      statusEl.innerHTML = '<span class="status-dot"></span> Stopped';
+    }
+  },
+
+  updateMonitorUI(point) {
+    const SM = window.ActivePulse.SensorManager;
+
+    // Status badge
+    const statusEl = document.getElementById('monitor-status-badge');
+    if (statusEl) {
+      const statusMap = {
+        active: { class: 'active', dot: 'green', text: 'Active' },
+        light: { class: 'light', dot: 'yellow', text: 'Light Movement' },
+        sedentary: { class: 'sedentary', dot: 'red', text: 'Sedentary' }
+      };
+      const s = statusMap[point.status] || statusMap.light;
+      statusEl.className = `status-badge ${s.class}`;
+      statusEl.innerHTML = `<span class="status-dot ${s.dot}"></span> ${s.text}`;
+    }
+
+    // Sedentary timer
+    const timerEl = document.getElementById('sedentary-timer');
+    if (timerEl) {
+      timerEl.textContent = SM.formatTime(point.sedentarySeconds);
+      timerEl.className = 'big-timer';
+      if (point.sedentarySeconds > 2700) timerEl.classList.add('danger');
+      else if (point.sedentarySeconds > 1800) timerEl.classList.add('warning');
+    }
+
+    // Intensity meter
+    const fillEl = document.getElementById('intensity-fill');
+    if (fillEl) {
+      const pct = Math.min(100, (point.magnitude / 4) * 100);
+      fillEl.style.width = pct + '%';
+    }
+
+    // Session stats
+    const stats = SM.getSessionStats();
+    const el = (id) => document.getElementById(id);
+    if (el('stat-session-duration')) el('stat-session-duration').textContent = SM.formatTime(stats.totalSeconds);
+    if (el('stat-session-active')) el('stat-session-active').textContent = SM.formatTime(stats.activeSeconds);
+    if (el('stat-session-sedentary')) el('stat-session-sedentary').textContent = SM.formatTime(stats.totalSeconds - stats.activeSeconds - stats.lightSeconds);
+    if (el('stat-session-breaks')) el('stat-session-breaks').textContent = stats.breaksTaken;
+  },
+
+  // === BREAK NOTIFICATION ===
+  showBreakNotification() {
+    const modal = document.getElementById('break-notification');
+    if (modal) modal.classList.add('visible');
+
+    // Play notification sound (browser API)
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = 520;
+      osc.type = 'sine';
+      gain.gain.value = 0.3;
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1);
+      osc.stop(audioCtx.currentTime + 1);
+    } catch(e) { /* no audio */ }
+  },
+
+  hideBreakNotification() {
+    const modal = document.getElementById('break-notification');
+    if (modal) modal.classList.remove('visible');
+    window.ActivePulse.SensorManager.resetBreakTimer();
+  },
+
+  snoozeBreak() {
+    this.hideBreakNotification();
+    // Timer will naturally restart since we reset sedentarySeconds
+  },
+
+  // === DASHBOARD ===
+  initDashboard() {
+    const DM = window.ActivePulse.DataManager;
+    const AE = window.ActivePulse.AnalyticsEngine;
+    AE.createDashboardCharts(DM);
+
+    // Update summary cards
+    const today = DM.getToday();
+    const avgs = DM.getWeeklyAverages();
+    const el = (id) => document.getElementById(id);
+
+    // Calculate waking sedentary (exclude sleep)
+    const wakingSed = today.hours.filter(h => h.hour >= 6).reduce((s, h) => s + h.sedentaryMinutes, 0);
+    if (el('dash-score')) el('dash-score').textContent = today.summary.movementScore;
+    if (el('dash-steps')) el('dash-steps').textContent = today.summary.totalSteps.toLocaleString();
+    if (el('dash-sedentary')) el('dash-sedentary').textContent = (wakingSed / 60).toFixed(1) + 'h';
+    if (el('dash-active')) el('dash-active').textContent = (today.summary.totalActiveMinutes / 60).toFixed(1) + 'h';
+    if (el('dash-calories')) el('dash-calories').textContent = today.summary.calories;
+    if (el('dash-avg-score')) el('dash-avg-score').textContent = 'Week avg: ' + avgs.avgScore;
+  },
+
+  // === RISK QUESTIONNAIRE ===
+  currentQuestion: 0,
+
+  setupQuestionnaire() {
+    const RE = window.ActivePulse.RiskEngine;
+    this.currentQuestion = 0;
+    this.renderQuestion();
+
+    const nextBtn = document.getElementById('btn-next-question');
+    const prevBtn = document.getElementById('btn-prev-question');
+    const submitBtn = document.getElementById('btn-submit-risk');
+
+    if (nextBtn) nextBtn.addEventListener('click', () => this.nextQuestion());
+    if (prevBtn) prevBtn.addEventListener('click', () => this.prevQuestion());
+    if (submitBtn) submitBtn.addEventListener('click', () => this.submitRisk());
+    
+    const retakeBtn = document.getElementById('btn-retake');
+    if (retakeBtn) retakeBtn.addEventListener('click', () => this.retakeQuiz());
+  },
+
+  renderQuestion() {
+    const RE = window.ActivePulse.RiskEngine;
+    const questions = RE.getQuestions();
+    const q = questions[this.currentQuestion];
+    const container = document.getElementById('question-container');
+    if (!container || !q) return;
+
+    // Progress
+    const progress = document.getElementById('questionnaire-progress');
+    if (progress) progress.style.width = ((this.currentQuestion + 1) / questions.length * 100) + '%';
+
+    const questionNum = document.getElementById('question-number');
+    if (questionNum) questionNum.textContent = `Question ${this.currentQuestion + 1} of ${questions.length}`;
+
+    container.innerHTML = `
+      <div class="question-card">
+        <div class="question-number">${q.category}</div>
+        <div class="question-text">${q.text}</div>
+        <ul class="options-list" id="options-list">
+          ${q.options.map((opt, i) => `
+            <li class="option-item ${RE.answers[q.id] === i ? 'selected' : ''}" data-index="${i}">
+              <div class="option-radio"></div>
+              <span>${opt.text}</span>
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    `;
+
+    // Bind option clicks
+    container.querySelectorAll('.option-item').forEach(item => {
+      item.addEventListener('click', () => {
+        container.querySelectorAll('.option-item').forEach(o => o.classList.remove('selected'));
+        item.classList.add('selected');
+        RE.setAnswer(q.id, parseInt(item.dataset.index));
+        this.updateQuestionNav();
+      });
+    });
+
+    this.updateQuestionNav();
+  },
+
+  updateQuestionNav() {
+    const RE = window.ActivePulse.RiskEngine;
+    const questions = RE.getQuestions();
+    const prevBtn = document.getElementById('btn-prev-question');
+    const nextBtn = document.getElementById('btn-next-question');
+    const submitBtn = document.getElementById('btn-submit-risk');
+
+    if (prevBtn) prevBtn.style.display = this.currentQuestion > 0 ? 'inline-flex' : 'none';
+
+    const isLast = this.currentQuestion === questions.length - 1;
+    if (nextBtn) nextBtn.style.display = isLast ? 'none' : 'inline-flex';
+    if (submitBtn) submitBtn.style.display = (isLast && RE.isComplete()) ? 'inline-flex' : 'none';
+  },
+
+  nextQuestion() {
+    const RE = window.ActivePulse.RiskEngine;
+    const q = RE.getQuestions()[this.currentQuestion];
+    if (RE.answers[q.id] === undefined) return; // must answer first
+    if (this.currentQuestion < RE.getQuestions().length - 1) {
+      this.currentQuestion++;
+      this.renderQuestion();
+    }
+  },
+
+  prevQuestion() {
+    if (this.currentQuestion > 0) {
+      this.currentQuestion--;
+      this.renderQuestion();
+    }
+  },
+
+  submitRisk() {
+    const RE = window.ActivePulse.RiskEngine;
+    const AE = window.ActivePulse.AnalyticsEngine;
+    if (!RE.isComplete()) return;
+
+    const score = RE.calculateScore();
+    const riskLevel = RE.getRiskLevel(score);
+    const factors = RE.getFactorBreakdown();
+    const radarData = RE.getRadarData();
+    const percentile = RE.getPercentile(score);
+    const flags = RE.getVulnerabilityFlags();
+
+    // Hide questionnaire, show results
+    const qForm = document.getElementById('questionnaire-form');
+    const results = document.getElementById('risk-results');
+    if (qForm) qForm.classList.add('hidden');
+    if (results) results.classList.add('visible');
+
+    // Score gauge
+    this.renderGauge(score, riskLevel.color);
+
+    // Risk level badge
+    const badge = document.getElementById('risk-level-badge');
+    if (badge) {
+      badge.className = `risk-level-badge ${riskLevel.class}`;
+      badge.textContent = `${riskLevel.level} Risk`;
+    }
+
+    const desc = document.getElementById('risk-description');
+    if (desc) desc.textContent = riskLevel.desc;
+
+    // Percentile
+    const pctEl = document.getElementById('risk-percentile');
+    if (pctEl) pctEl.textContent = `You're more active than ${percentile}% of assessed users.`;
+
+    // Factor breakdown
+    const factorContainer = document.getElementById('factor-breakdown');
+    if (factorContainer) {
+      factorContainer.innerHTML = factors.map(f => `
+        <div class="factor-bar">
+          <span class="factor-label">${f.label}</span>
+          <div class="factor-track">
+            <div class="factor-fill" style="width:${f.score}%; background:${f.color}"></div>
+          </div>
+          <span class="factor-value" style="color:${f.color}">${f.score}</span>
+        </div>
+      `).join('');
+    }
+
+    // Radar chart
+    AE.createRiskRadar(radarData);
+
+    // Vulnerability flags
+    const flagContainer = document.getElementById('vulnerability-flags');
+    if (flagContainer) {
+      flagContainer.innerHTML = flags.map(f => `
+        <div class="insight-card">
+          <div class="insight-icon amber">${f.icon}</div>
+          <div class="insight-text"><p>${f.text}</p></div>
+        </div>
+      `).join('');
+    }
+  },
+
+  renderGauge(score, color) {
+    const el = document.getElementById('gauge-value');
+    if (el) {
+      el.textContent = score;
+      el.style.color = color;
+    }
+
+    const fill = document.getElementById('gauge-fill');
+    if (fill) {
+      // SVG arc: 180 degree semi-circle, circumference ~ 157
+      const circumference = 157;
+      const offset = circumference - (score / 100) * circumference;
+      fill.style.strokeDasharray = circumference;
+      fill.style.strokeDashoffset = offset;
+      fill.style.stroke = color;
+    }
+  },
+
+  retakeQuiz() {
+    const RE = window.ActivePulse.RiskEngine;
+    RE.init();
+    this.currentQuestion = 0;
+
+    const qForm = document.getElementById('questionnaire-form');
+    const results = document.getElementById('risk-results');
+    if (qForm) qForm.classList.remove('hidden');
+    if (results) results.classList.remove('visible');
+
+    this.renderQuestion();
+  },
+
+  // === INSIGHTS ===
+  initInsights() {
+    const DM = window.ActivePulse.DataManager;
+    const AE = window.ActivePulse.AnalyticsEngine;
+    const insights = AE.generateInsights(DM);
+
+    const container = document.getElementById('insights-list');
+    if (container) {
+      container.innerHTML = insights.map(ins => `
+        <div class="insight-card">
+          <div class="insight-icon ${ins.iconClass}">${ins.icon}</div>
+          <div class="insight-text">
+            <h3>${ins.title}</h3>
+            <p>${ins.text}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Generate break schedule
+    const scheduleContainer = document.getElementById('break-schedule');
+    if (scheduleContainer) {
+      const breaks = ['09:00','10:00','11:00','12:30','14:00','15:00','16:00','17:30'];
+      scheduleContainer.innerHTML = breaks.map(t => `
+        <div class="option-item" style="cursor:default">
+          <div class="insight-icon green" style="width:32px;height:32px;font-size:0.9rem">🚶</div>
+          <span>${t} — 5 minute movement break</span>
+        </div>
+      `).join('');
+    }
+  },
+
+  // === REWARDS ===
+  initRewards() {
+    const RW = window.ActivePulse.Rewards;
+    if (!RW) return;
+    this.renderTasks();
+    this.renderScratchCards();
+    this.renderHealthRisks();
+    this.renderEarnedCoupons();
+    const ptsEl = document.getElementById('total-points');
+    if (ptsEl) ptsEl.textContent = RW.totalPoints;
+  },
+
+  renderTasks() {
+    const RW = window.ActivePulse.Rewards;
+    const container = document.getElementById('tasks-list');
+    if (!container || !RW) return;
+    container.innerHTML = RW.tasks.map(t => `
+      <div class="task-item ${t.done ? 'completed' : ''}" data-task="${t.id}">
+        <div class="task-check"></div>
+        <div class="task-icon">${t.icon}</div>
+        <div class="task-info">
+          <h4>${t.title}</h4>
+          <p>${t.desc}</p>
+        </div>
+        <div class="task-points">+${t.points} pts</div>
+      </div>
+    `).join('');
+    container.querySelectorAll('.task-item:not(.completed)').forEach(el => {
+      el.addEventListener('click', () => {
+        const taskId = el.dataset.task;
+        const result = RW.completeTask(taskId);
+        if (result) {
+          this.initRewards();
+        }
+      });
+    });
+  },
+
+  renderScratchCards() {
+    const RW = window.ActivePulse.Rewards;
+    const container = document.getElementById('scratch-container');
+    const countEl = document.getElementById('scratch-count');
+    if (!container || !RW) return;
+    if (countEl) countEl.textContent = RW.scratchCardsAvailable;
+    if (RW.scratchCardsAvailable <= 0) {
+      container.innerHTML = '<div class="no-cards">Complete tasks to earn scratch cards! (2 tasks = 1 card)</div>';
+      return;
+    }
+    container.innerHTML = '';
+    for (let i = 0; i < RW.scratchCardsAvailable; i++) {
+      const card = document.createElement('div');
+      card.className = 'scratch-card';
+      card.innerHTML = `
+        <div class="scratch-content">
+          <div class="coupon-code">???</div>
+          <div class="coupon-reward">Tap to reveal!</div>
+        </div>
+        <div class="scratch-overlay">
+          <span>🎁</span>
+          <p>Tap to Scratch!</p>
+        </div>
+      `;
+      card.addEventListener('click', () => {
+        const coupon = RW.getRandomCoupon();
+        if (coupon) {
+          const overlay = card.querySelector('.scratch-overlay');
+          const content = card.querySelector('.scratch-content');
+          overlay.classList.add('revealed');
+          card.classList.add('scratched');
+          content.innerHTML = `
+            <div class="coupon-code">${coupon.code}</div>
+            <div class="coupon-reward">${coupon.reward}</div>
+            <span class="coupon-rarity ${coupon.rarity}">${coupon.rarity.toUpperCase()}</span>
+          `;
+          this.renderScratchCards();
+          this.renderEarnedCoupons();
+        }
+      });
+      container.appendChild(card);
+    }
+  },
+
+  renderEarnedCoupons() {
+    const RW = window.ActivePulse.Rewards;
+    const container = document.getElementById('earned-coupons');
+    if (!container || !RW) return;
+    if (RW.earnedCoupons.length === 0) {
+      container.innerHTML = '<p style="color:var(--text3);font-size:.85rem;">No coupons earned yet</p>';
+      return;
+    }
+    container.innerHTML = RW.earnedCoupons.map(c => `
+      <div class="insight-card">
+        <div class="insight-icon ${c.rarity === 'legendary' ? 'amber' : c.rarity === 'rare' ? 'purple' : 'green'}">
+          ${c.rarity === 'legendary' ? '👑' : c.rarity === 'rare' ? '💎' : '🎫'}
+        </div>
+        <div class="insight-text">
+          <h3 style="color:var(--success);letter-spacing:1px;">${c.code}</h3>
+          <p>${c.reward}</p>
+        </div>
+      </div>
+    `).join('');
+  },
+
+  renderHealthRisks() {
+    const RW = window.ActivePulse.Rewards;
+    const container = document.getElementById('health-risks-list');
+    if (!container || !RW) return;
+    const risks = RW.getHealthRisks();
+    container.innerHTML = risks.map(r => `
+      <div class="risk-warning-card">
+        <div class="risk-warning-header">
+          <span>${r.icon}</span>
+          <h3>${r.title}</h3>
+        </div>
+        <p>${r.desc}</p>
+        <div class="severity-bar">
+          <div class="severity-fill" style="width:${r.severity}%"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+};
+
+// === BOOT ===
+document.addEventListener('DOMContentLoaded', () => {
+  // Start particle background
+  if (window.ActivePulse.Particles) {
+    window.ActivePulse.Particles.init();
+  }
+  window.ActivePulse.App.init();
+});

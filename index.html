@@ -1,1 +1,490 @@
-<p>Hello World</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Active Pulse — Sedentary Behavior Intelligence</title>
+  <meta name="description" content="Real-time sedentary behavior detection platform using smartphone sensors, analytics dashboards, and AI-powered risk assessment to combat the sedentary generation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Particle Background -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- Login Screen -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="login-avatar">💓</div>
+      <h1>Active Pulse</h1>
+      <p>Sign in to track your wellness journey</p>
+      <input type="text" class="login-input" id="login-name" placeholder="Enter your name">
+      <button class="btn-google" id="btn-google-login">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Sign in with Google
+      </button>
+      <button class="btn-google" id="btn-guest-login" style="border-color:var(--primary);">
+        🚀 Continue as Guest
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Menu Toggle -->
+  <button class="mobile-toggle" id="mobile-toggle">☰</button>
+
+  <!-- Sidebar Navigation -->
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">💓</div>
+      <span class="logo-text">Active Pulse</span>
+    </div>
+    <div class="user-greeting hidden" id="user-greeting">
+      <div class="user-avatar-sm" id="user-avatar">?</div>
+      <div class="user-name">Welcome, <strong id="user-display-name">Guest</strong></div>
+    </div>
+    <ul class="nav-links">
+      <li class="nav-item active" data-section="hero">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Home</span>
+      </li>
+      <li class="nav-item" data-section="monitor">
+        <span class="nav-icon">📡</span>
+        <span class="nav-label">Live Monitor</span>
+      </li>
+      <li class="nav-item" data-section="dashboard">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Dashboard</span>
+      </li>
+      <li class="nav-item" data-section="wellness">
+        <span class="nav-icon">🧘</span>
+        <span class="nav-label">Wellness Hub</span>
+      </li>
+      <li class="nav-item" data-section="rewards">
+        <span class="nav-icon">🎮</span>
+        <span class="nav-label">Rewards</span>
+      </li>
+      <li class="nav-item" data-section="risk">
+        <span class="nav-icon">⚠️</span>
+        <span class="nav-label">Risk Assessment</span>
+      </li>
+      <li class="nav-item" data-section="insights">
+        <span class="nav-icon">💡</span>
+        <span class="nav-label">Insights</span>
+      </li>
+    </ul>
+    <div class="sidebar-footer">
+      <p>Active Pulse v2.0</p>
+      <p>Hackathon 2026</p>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main id="main-content">
+
+    <!-- ===== HERO SECTION ===== -->
+    <section id="hero" class="section active">
+      <div class="hero-container">
+        <div class="hero-badge">
+          <span class="pulse-dot"></span>
+          Combating The Sedentary Generation
+        </div>
+        <h1 class="hero-title">Active Pulse</h1>
+        <p class="hero-subtitle">
+          Real-time sedentary behavior detection powered by your device's sensors. 
+          Track movement patterns, assess health risks, and get actionable insights 
+          to keep you moving throughout the day.
+        </p>
+        <div class="hero-stats">
+          <div class="stat-card">
+            <div class="stat-value text-danger" id="stat-sedentary-hours">0</div>
+            <div class="stat-label">Sedentary Hours Today</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-accent" id="stat-steps">0</div>
+            <div class="stat-label">Avg Daily Steps</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-primary" id="stat-score">0</div>
+            <div class="stat-label">Movement Score</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-warning" id="stat-streak">0</div>
+            <div class="stat-label">Longest Sedentary Streak</div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg" onclick="ActivePulse.App.navigateTo('monitor')">
+          📡 Start Monitoring
+        </button>
+        <button class="btn btn-outline btn-lg" style="margin-left:0.75rem" onclick="ActivePulse.App.navigateTo('dashboard')">
+          📊 View Dashboard
+        </button>
+      </div>
+    </section>
+
+    <!-- ===== LIVE MONITOR SECTION ===== -->
+    <section id="monitor" class="section">
+      <div class="section-header">
+        <h1>Live Activity Monitor</h1>
+        <p>Real-time motion detection using your device's sensors</p>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+        <div id="monitor-status-badge" class="status-badge">
+          <span class="status-dot"></span> Not Started
+        </div>
+        <button class="btn btn-primary" id="btn-start-monitor">▶ Start Monitoring</button>
+        <button class="btn btn-danger hidden" id="btn-stop-monitor">⏹ Stop Monitoring</button>
+      </div>
+
+      <div class="monitor-grid">
+        <!-- Real-time Chart -->
+        <div class="card">
+          <div class="card-title">Motion Intensity — Real Time</div>
+          <div class="chart-wrapper" style="height:320px;">
+            <canvas id="chart-realtime"></canvas>
+          </div>
+        </div>
+
+        <!-- Monitor Sidebar -->
+        <div class="monitor-sidebar">
+          <div class="card" style="text-align:center;">
+            <div class="card-title">Sedentary Timer</div>
+            <div class="big-timer" id="sedentary-timer">00:00:00</div>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;">
+              Alert at 60 min continuous inactivity
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Movement Intensity</div>
+            <div class="intensity-meter">
+              <div class="intensity-fill" id="intensity-fill" style="width:0%"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:0.4rem;">
+              <span style="font-size:0.7rem; color:var(--text-muted);">Still</span>
+              <span style="font-size:0.7rem; color:var(--text-muted);">Active</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Session Stats</div>
+            <div class="session-stat">
+              <span class="session-stat-label">Duration</span>
+              <span class="session-stat-value" id="stat-session-duration">00:00:00</span>
+            </div>
+            <div class="session-stat">
+              <span class="session-stat-label">Active Time</span>
+              <span class="session-stat-value" id="stat-session-active" style="color:var(--success)">00:00:00</span>
+            </div>
+            <div class="session-stat">
+              <span class="session-stat-label">Sedentary Time</span>
+              <span class="session-stat-value" id="stat-session-sedentary" style="color:var(--danger)">00:00:00</span>
+            </div>
+            <div class="session-stat">
+              <span class="session-stat-label">Breaks Taken</span>
+              <span class="session-stat-value" id="stat-session-breaks">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== DASHBOARD SECTION ===== -->
+    <section id="dashboard" class="section">
+      <div class="section-header">
+        <h1>Activity Dashboard</h1>
+        <p>Your movement patterns and trends over the last 30 days</p>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid-4">
+        <div class="card">
+          <div class="card-title">Today's Score</div>
+          <div class="card-value" style="color:var(--primary-light)" id="dash-score">—</div>
+          <div class="card-subtitle" id="dash-avg-score">Week avg: —</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Steps Today</div>
+          <div class="card-value" style="color:var(--accent-light)" id="dash-steps">—</div>
+          <div class="card-subtitle">Goal: 8,000</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Sedentary Time</div>
+          <div class="card-value" style="color:var(--danger)" id="dash-sedentary">—</div>
+          <div class="card-subtitle">Lower is better</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Active Time</div>
+          <div class="card-value" style="color:var(--success)" id="dash-active">—</div>
+          <div class="card-subtitle">Calories: <span id="dash-calories">—</span></div>
+        </div>
+      </div>
+
+      <!-- Charts Row 1 -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Today's Activity Timeline (24h)</div>
+          <div class="chart-wrapper" style="height:280px;">
+            <canvas id="chart-daily-timeline"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Weekly Movement Score</div>
+          <div class="chart-wrapper" style="height:280px;">
+            <canvas id="chart-weekly-pattern"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row 2 -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Activity Distribution</div>
+          <div class="chart-wrapper" style="height:280px;">
+            <canvas id="chart-distribution"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">30-Day Movement Trend</div>
+          <div class="chart-wrapper" style="height:280px;">
+            <canvas id="chart-trend"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row 3: Histogram -->
+      <div class="grid-2">
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-title">📊 Hourly Activity Histogram (30-Day Average)</div>
+          <div class="chart-wrapper" style="height:280px;">
+            <canvas id="chart-histogram"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== WELLNESS HUB ===== -->
+    <section id="wellness" class="section">
+      <div class="section-header">
+        <h1>Wellness Hub</h1>
+        <p>Yoga, hydration, posture exercises & walk reminders</p>
+      </div>
+
+      <h2 style="font-size:1.15rem;font-weight:700;margin-bottom:1rem;">🧘 Yoga Postures</h2>
+      <div class="grid-3">
+        <div class="wellness-card"><div class="card-icon">🐱</div><h3>Cat-Cow Stretch</h3><p>On hands and knees, alternate arching and rounding your back. Relieves spine tension and improves flexibility.</p><span class="wellness-tag easy">Easy · 2 min</span></div>
+        <div class="wellness-card"><div class="card-icon">🧒</div><h3>Child's Pose</h3><p>Kneel and stretch arms forward on the floor. A restorative pose that releases back, hip, and shoulder tension.</p><span class="wellness-tag easy">Easy · 1 min</span></div>
+        <div class="wellness-card"><div class="card-icon">🔄</div><h3>Seated Spinal Twist</h3><p>Sit and twist your torso gently. Can be done in a chair! Improves spinal mobility and digestion.</p><span class="wellness-tag easy">Easy · 1 min</span></div>
+        <div class="wellness-card"><div class="card-icon">⛰️</div><h3>Mountain Pose</h3><p>Stand tall, feet together, arms at sides. Focus on alignment and breathing. Resets your posture baseline.</p><span class="wellness-tag easy">Easy · 1 min</span></div>
+        <div class="wellness-card"><div class="card-icon">🐕</div><h3>Downward Dog</h3><p>Inverted V-shape. Stretches hamstrings, calves, and shoulders while strengthening arms.</p><span class="wellness-tag medium">Medium · 2 min</span></div>
+        <div class="wellness-card"><div class="card-icon">🦅</div><h3>Eagle Arms</h3><p>Cross arms and wrap forearms. Opens upper back and shoulders — perfect after long computer sessions.</p><span class="wellness-tag easy">Easy · 1 min</span></div>
+      </div>
+
+      <h2 style="font-size:1.15rem;font-weight:700;margin:2rem 0 1rem;">💧 Hydration Guide</h2>
+      <div class="grid-3">
+        <div class="wellness-card"><div class="card-icon">🥤</div><h3>8 Glasses Daily</h3><p>Aim for 2 liters (8 glasses) of water per day. Set hourly reminders. Use a marked water bottle to track intake.</p><span class="wellness-tag easy">Essential</span></div>
+        <div class="wellness-card"><div class="card-icon">🍋</div><h3>Infused Water</h3><p>Add lemon, cucumber, or mint to make water more appealing. Increases your likelihood of staying hydrated by 40%.</p><span class="wellness-tag easy">Tip</span></div>
+        <div class="wellness-card"><div class="card-icon">☕</div><h3>Limit Caffeine</h3><p>Coffee dehydrates. For every cup of coffee, drink an extra glass of water. Switch to green tea after 2 PM.</p><span class="wellness-tag medium">Important</span></div>
+      </div>
+
+      <h2 style="font-size:1.15rem;font-weight:700;margin:2rem 0 1rem;">🪑 Posture-Fixing Exercises</h2>
+      <div class="grid-3">
+        <div class="wellness-card"><div class="card-icon">🔽</div><h3>Chin Tucks</h3><p>Pull chin straight back (making a double chin). Hold 5 seconds, repeat 10x. Corrects forward head posture from screens.</p><span class="wellness-tag easy">Easy · 2 min</span></div>
+        <div class="wellness-card"><div class="card-icon">🧱</div><h3>Wall Angels</h3><p>Stand with back against wall, slide arms up and down like making snow angels. Opens chest and strengthens upper back.</p><span class="wellness-tag medium">Medium · 3 min</span></div>
+        <div class="wellness-card"><div class="card-icon">🤸</div><h3>Chest Opener</h3><p>Clasp hands behind back, squeeze shoulder blades together, lift arms. Counteracts hunched desk posture.</p><span class="wellness-tag easy">Easy · 1 min</span></div>
+        <div class="wellness-card"><div class="card-icon">🦵</div><h3>Hip Flexor Stretch</h3><p>Kneel on one knee, push hips forward. Hold 30 seconds each side. Reverses hip tightness from sitting.</p><span class="wellness-tag medium">Medium · 3 min</span></div>
+        <div class="wellness-card"><div class="card-icon">🌉</div><h3>Glute Bridge</h3><p>Lie on back, knees bent, lift hips. Activates glutes that go dormant from prolonged sitting.</p><span class="wellness-tag medium">Medium · 3 min</span></div>
+      </div>
+
+      <div class="card mt-3" style="border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.05);">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:2rem;">🚶</span>
+          <div>
+            <h3 style="font-weight:700;">Walk 5 Minutes Every Hour</h3>
+            <p style="color:var(--text2);font-size:.9rem;">Research shows a 5-minute walk every hour reduces cardiovascular risk by 58% and boosts productivity by 15%. Set your break timer to 60 minutes in the Live Monitor!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== REWARDS SECTION ===== -->
+    <section id="rewards" class="section">
+      <div class="section-header">
+        <h1>Rewards & Tasks</h1>
+        <p>Complete wellness tasks to earn scratch cards and coupon rewards</p>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <h2 style="font-size:1.15rem;font-weight:700;margin-bottom:1rem;">✅ Daily Tasks</h2>
+          <div id="tasks-list"></div>
+          <div class="card mt-2" style="text-align:center;">
+            <div class="card-title">Points Earned</div>
+            <div class="card-value" style="color:var(--primary-light)" id="total-points">0</div>
+            <div class="card-subtitle">Complete 2 tasks = 1 scratch card</div>
+          </div>
+        </div>
+        <div>
+          <h2 style="font-size:1.15rem;font-weight:700;margin-bottom:1rem;">🎰 Scratch Cards</h2>
+          <p style="color:var(--text2);font-size:.85rem;margin-bottom:.5rem;">Available: <strong id="scratch-count">0</strong> cards</p>
+          <div class="scratch-card-container" id="scratch-container">
+            <div class="no-cards">Complete tasks to earn scratch cards!</div>
+          </div>
+
+          <h2 style="font-size:1.15rem;font-weight:700;margin:1.5rem 0 1rem;">🏆 Earned Coupons</h2>
+          <div id="earned-coupons">
+            <p style="color:var(--text3);font-size:.85rem;">No coupons earned yet</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 style="font-size:1.15rem;font-weight:700;margin:2rem 0 1rem;">⚠️ Health Risks if You Stay Inactive</h2>
+      <div id="health-risks-list"></div>
+    </section>
+
+    <!-- ===== RISK ASSESSMENT SECTION ===== -->
+    <section id="risk" class="section">
+      <div class="section-header">
+        <h1>Risk Assessment</h1>
+        <p>Answer 8 quick questions to evaluate your sedentary behavior risk level</p>
+      </div>
+
+      <!-- Questionnaire -->
+      <div id="questionnaire-form">
+        <div class="questionnaire">
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="questionnaire-progress" style="width:12.5%"></div>
+          </div>
+          <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.25rem;" id="question-number">Question 1 of 8</p>
+          <div id="question-container"></div>
+          <div style="display:flex; gap:1rem; justify-content:flex-end; margin-top:1rem;">
+            <button class="btn btn-outline" id="btn-prev-question" style="display:none">← Previous</button>
+            <button class="btn btn-primary" id="btn-next-question">Next →</button>
+            <button class="btn btn-primary" id="btn-submit-risk" style="display:none">View Results 🎯</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div id="risk-results" class="risk-results">
+        <div class="questionnaire">
+          <div class="card mb-3">
+            <div class="risk-score-display">
+              <div class="gauge-container">
+                <svg class="gauge-svg" viewBox="0 0 120 70">
+                  <path class="gauge-bg" d="M 10 65 A 50 50 0 0 1 110 65" />
+                  <path class="gauge-fill" id="gauge-fill" d="M 10 65 A 50 50 0 0 1 110 65"
+                        style="stroke-dasharray:157; stroke-dashoffset:157" />
+                </svg>
+                <div class="gauge-value" id="gauge-value">0</div>
+              </div>
+              <div class="gauge-label">Sedentary Risk Score</div>
+              <div id="risk-level-badge" class="risk-level-badge low mt-2">Low Risk</div>
+              <p style="color:var(--text-secondary); margin-top:0.75rem; font-size:0.9rem;" id="risk-description"></p>
+              <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.5rem;" id="risk-percentile"></p>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-title">Factor Breakdown</div>
+              <div id="factor-breakdown"></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Risk Radar</div>
+              <div class="chart-wrapper" style="height:280px;">
+                <canvas id="chart-radar"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mt-3">
+            <div class="card-title">⚠️ Vulnerability Flags</div>
+            <div id="vulnerability-flags"></div>
+          </div>
+
+          <div class="text-center mt-3">
+            <button class="btn btn-outline" id="btn-retake">🔄 Retake Assessment</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== INSIGHTS SECTION ===== -->
+    <section id="insights" class="section">
+      <div class="section-header">
+        <h1>Insights & Recommendations</h1>
+        <p>AI-powered analysis of your activity patterns</p>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <h2 style="font-size:1.15rem; font-weight:700; margin-bottom:1rem;">📊 Your Patterns</h2>
+          <div id="insights-list">
+            <p style="color:var(--text-muted)">Loading insights...</p>
+          </div>
+        </div>
+
+        <div>
+          <h2 style="font-size:1.15rem; font-weight:700; margin-bottom:1rem;">🏃 Micro-Exercise Suggestions</h2>
+          <div class="grid-3" style="grid-template-columns: 1fr;">
+            <div class="rec-card">
+              <div class="rec-icon">🧘</div>
+              <h3>Desk Stretches</h3>
+              <p>Neck rolls, shoulder shrugs, and wrist circles. Takes 2 minutes, relieves tension from prolonged sitting.</p>
+            </div>
+            <div class="rec-card">
+              <div class="rec-icon">🚶</div>
+              <h3>Walk & Talk</h3>
+              <p>Take phone calls while walking. Even pacing around your room adds 500+ steps per 10-minute call.</p>
+            </div>
+            <div class="rec-card">
+              <div class="rec-icon">⬆️</div>
+              <h3>Stair Challenge</h3>
+              <p>Take stairs instead of elevator. 2 flights = 1 minute of moderate activity + leg strength building.</p>
+            </div>
+            <div class="rec-card">
+              <div class="rec-icon">💧</div>
+              <h3>Hydration Walk</h3>
+              <p>Use a small water bottle. Refill trips = forced movement breaks every 30-45 minutes.</p>
+            </div>
+          </div>
+
+          <h2 style="font-size:1.15rem; font-weight:700; margin:1.5rem 0 1rem;">📅 Suggested Break Schedule</h2>
+          <div class="card">
+            <div id="break-schedule">
+              <p style="color:var(--text-muted)">Loading schedule...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Break Notification Modal -->
+  <div class="notification-modal" id="break-notification">
+    <div class="notification-content">
+      <div class="notification-icon">🔔</div>
+      <h2>Time to Move!</h2>
+      <p>You've been sedentary for <strong>60 minutes</strong>. Stand up, stretch, or take a short walk. Your body will thank you!</p>
+      <div class="notification-actions">
+        <button class="btn btn-primary" onclick="ActivePulse.App.hideBreakNotification()">✅ I Took a Break</button>
+        <button class="btn btn-outline" onclick="ActivePulse.App.snoozeBreak()">⏰ Remind Later</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts (order matters) -->
+  <script src="js/particles.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/sensors.js"></script>
+  <script src="js/risk.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/rewards.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
