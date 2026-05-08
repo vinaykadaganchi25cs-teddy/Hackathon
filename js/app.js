@@ -624,16 +624,15 @@ window.ActivePulse.App = {
           <h4>${t.title}</h4>
           <p>${t.desc}</p>
         </div>
-        <div class="task-points">+${t.points} pts</div>
+        <div class="task-points">${t.done ? '✅' : '+' + t.points + ' pts'}</div>
       </div>
     `).join('');
-    container.querySelectorAll('.task-item:not(.completed)').forEach(el => {
+    // ALL tasks are clickable (toggle on/off)
+    container.querySelectorAll('.task-item').forEach(el => {
       el.addEventListener('click', () => {
         const taskId = el.dataset.task;
-        const result = RW.completeTask(taskId);
-        if (result) {
-          this.initRewards();
-        }
+        RW.toggleTask(taskId);
+        this.initRewards();
       });
     });
   },
@@ -645,7 +644,7 @@ window.ActivePulse.App = {
     if (!container || !RW) return;
     if (countEl) countEl.textContent = RW.scratchCardsAvailable;
     if (RW.scratchCardsAvailable <= 0) {
-      container.innerHTML = '<div class="no-cards">Complete tasks to earn scratch cards! (2 tasks = 1 card)</div>';
+      container.innerHTML = '<div class="no-cards">🏆 Complete 2 tasks to earn a scratch card!</div>';
       return;
     }
     container.innerHTML = '';
@@ -670,12 +669,17 @@ window.ActivePulse.App = {
           overlay.classList.add('revealed');
           card.classList.add('scratched');
           content.innerHTML = `
+            <div style="font-size:1.8rem;margin-bottom:.2rem;">${coupon.emoji || '🎉'}</div>
             <div class="coupon-code">${coupon.code}</div>
             <div class="coupon-reward">${coupon.reward}</div>
-            <span class="coupon-rarity ${coupon.rarity}">${coupon.rarity.toUpperCase()}</span>
+            <span class="coupon-rarity ${coupon.rarity}">⭐ ${coupon.rarity.toUpperCase()}</span>
           `;
-          this.renderScratchCards();
-          this.renderEarnedCoupons();
+          // 🎉 PARTY BOMB CONFETTI!
+          RW.launchConfetti();
+          setTimeout(() => {
+            this.renderScratchCards();
+            this.renderEarnedCoupons();
+          }, 800);
         }
       });
       container.appendChild(card);
