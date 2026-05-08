@@ -116,15 +116,16 @@
   <!-- Main Content -->
   <main id="main-content">
 
-    <!-- ===== PROFILE SECTION ===== -->
+    <!-- ===== PROFILE SECTION (Myntra-Style) ===== -->
     <section id="profile" class="section">
       <div class="section-header">
-        <h1>My Profile</h1>
-        <p>Manage your account and preferences</p>
+        <h1>My Account</h1>
+        <p>Manage your profile, coupons, and preferences</p>
       </div>
 
-      <div class="grid-2">
-        <div class="card" style="text-align:center;padding:2.5rem;">
+      <!-- Profile Header Card -->
+      <div class="card profile-header-card">
+        <div class="profile-header-row">
           <div class="profile-pic-wrapper" id="profile-pic-wrapper">
             <div class="profile-pic" id="profile-pic-display">
               <span id="profile-pic-initial">?</span>
@@ -133,40 +134,93 @@
             <label class="profile-pic-upload" for="pfp-upload">📷</label>
             <input type="file" id="pfp-upload" accept="image/*" style="display:none;">
           </div>
-          <h2 id="profile-name-display" style="font-size:1.4rem;font-weight:700;margin-top:1rem;">Guest</h2>
-          <p id="profile-email-display" style="color:var(--text3);font-size:.85rem;margin-top:.25rem;">No email set</p>
-          <p id="profile-method-display" style="color:var(--primary-light);font-size:.75rem;margin-top:.5rem;">🔒 Signed in as Guest</p>
+          <div class="profile-header-info">
+            <h2 id="profile-name-display">Guest</h2>
+            <p id="profile-email-display">No email set</p>
+            <span class="profile-badge" id="profile-method-display">👤 Guest</span>
+          </div>
         </div>
+      </div>
 
+      <div class="grid-2">
+        <!-- Left Column: Account Menu -->
         <div>
+          <!-- Edit Profile -->
           <div class="card">
             <div class="card-title">✏️ Edit Profile</div>
-            <input type="text" class="login-input" id="edit-name" placeholder="Change Name">
-            <input type="email" class="login-input" id="edit-email" placeholder="Change Email">
-            <button class="btn btn-primary" id="btn-save-profile" style="width:100%;margin-top:.5rem;">💾 Save Changes</button>
+            <div class="profile-form-group">
+              <label>Full Name</label>
+              <input type="text" class="login-input" id="edit-name" placeholder="Enter new name">
+            </div>
+            <div class="profile-form-group">
+              <label>Email Address</label>
+              <input type="email" class="login-input" id="edit-email" placeholder="Enter new email">
+            </div>
+            <button class="btn btn-primary" id="btn-save-profile" style="width:100%;margin-top:.75rem;">💾 Save Changes</button>
           </div>
 
+          <!-- Account Menu List -->
           <div class="card mt-2">
-            <div class="card-title">📊 Account Stats</div>
-            <div class="session-stat">
-              <span class="session-stat-label">Member Since</span>
-              <span class="session-stat-value" id="profile-joined">Today</span>
+            <div class="card-title">⚙️ Account</div>
+            <div class="profile-menu">
+              <div class="profile-menu-item" data-section="rewards">
+                <span class="profile-menu-icon">🎮</span>
+                <div><strong>My Rewards</strong><p>Scratch cards & task points</p></div>
+                <span class="profile-menu-arrow">›</span>
+              </div>
+              <div class="profile-menu-item" data-section="wellness">
+                <span class="profile-menu-icon">🧘</span>
+                <div><strong>Wellness Hub</strong><p>Yoga, hydration & posture guides</p></div>
+                <span class="profile-menu-arrow">›</span>
+              </div>
+              <div class="profile-menu-item" data-section="dashboard">
+                <span class="profile-menu-icon">📊</span>
+                <div><strong>Activity Dashboard</strong><p>Charts & analytics</p></div>
+                <span class="profile-menu-arrow">›</span>
+              </div>
+              <div class="profile-menu-item" data-section="insights">
+                <span class="profile-menu-icon">💡</span>
+                <div><strong>Insights</strong><p>AI-powered recommendations</p></div>
+                <span class="profile-menu-arrow">›</span>
+              </div>
             </div>
-            <div class="session-stat">
-              <span class="session-stat-label">Tasks Completed</span>
-              <span class="session-stat-value" id="profile-tasks" style="color:var(--success)">0</span>
-            </div>
-            <div class="session-stat">
-              <span class="session-stat-label">Coupons Earned</span>
-              <span class="session-stat-value" id="profile-coupons" style="color:var(--primary-light)">0</span>
-            </div>
-            <div class="session-stat">
-              <span class="session-stat-label">Total Points</span>
-              <span class="session-stat-value" id="profile-points" style="color:var(--warning)">0</span>
+          </div>
+        </div>
+
+        <!-- Right Column: Stats & Coupons -->
+        <div>
+          <div class="card">
+            <div class="card-title">📊 Overview</div>
+            <div class="profile-stats-grid">
+              <div class="profile-stat-box">
+                <div class="profile-stat-num" id="profile-points">0</div>
+                <div class="profile-stat-label">Points</div>
+              </div>
+              <div class="profile-stat-box">
+                <div class="profile-stat-num" id="profile-tasks">0</div>
+                <div class="profile-stat-label">Tasks Done</div>
+              </div>
+              <div class="profile-stat-box">
+                <div class="profile-stat-num" id="profile-coupons">0</div>
+                <div class="profile-stat-label">Coupons</div>
+              </div>
+              <div class="profile-stat-box">
+                <div class="profile-stat-num" id="profile-joined">Today</div>
+                <div class="profile-stat-label">Member Since</div>
+              </div>
             </div>
           </div>
 
-          <button class="btn btn-danger" id="btn-profile-logout" style="width:100%;margin-top:1rem;">🚪 Logout</button>
+          <!-- My Coupons -->
+          <div class="card mt-2">
+            <div class="card-title">🎫 My Coupons</div>
+            <div id="profile-coupons-list">
+              <p style="color:var(--text3);font-size:.85rem;">Complete tasks to earn coupons!</p>
+            </div>
+          </div>
+
+          <!-- Logout -->
+          <button class="btn-logout-full" id="btn-profile-logout">🚪 Logout</button>
         </div>
       </div>
     </section>

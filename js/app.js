@@ -60,7 +60,8 @@ window.ActivePulse.App = {
     if (saved) {
       try {
         const profile = JSON.parse(saved);
-        this.setLoggedIn(profile);
+      this.setLoggedIn(profile);
+        this.setupLogout(); // FIX: Must bind logout AFTER login too
         if (loginScreen) loginScreen.classList.add('hidden-login');
       } catch(e) {
         localStorage.removeItem('activepulse_profile');
@@ -219,23 +220,64 @@ window.ActivePulse.App = {
         if (newEmail) saved.email = newEmail;
         localStorage.setItem('activepulse_profile', JSON.stringify(saved));
         this.setLoggedIn(saved);
-        // Visual feedback
         saveBtn.textContent = '✅ Saved!';
-        setTimeout(() => { saveBtn.textContent = '💾 Save Changes'; }, 1500);
+        saveBtn.style.background = 'var(--success)';
+        setTimeout(() => { saveBtn.textContent = '💾 Save Changes'; saveBtn.style.background = ''; }, 1500);
+        // Clear inputs
+        const nameInput = document.getElementById('edit-name');
+        const emailInput = document.getElementById('edit-email');
+        if (nameInput) nameInput.value = '';
+        if (emailInput) emailInput.value = '';
       });
     }
+
+    // Profile menu navigation
+    document.querySelectorAll('.profile-menu-item[data-section]').forEach(item => {
+      if (!item._bound) {
+        item._bound = true;
+        item.addEventListener('click', () => {
+          const section = item.dataset.section;
+          const navItem = document.querySelector(`.nav-item[data-section="${section}"]`);
+          if (navItem) navItem.click();
+        });
+      }
+    });
+
+    // Render profile coupons list
+    this.renderProfileCoupons();
+  },
+
+  renderProfileCoupons() {
+    const RW = window.ActivePulse.Rewards;
+    const container = document.getElementById('profile-coupons-list');
+    if (!container || !RW) return;
+    if (RW.earnedCoupons.length === 0) {
+      container.innerHTML = '<p style="color:var(--text3);font-size:.85rem;">Complete tasks to earn coupons!</p>';
+      return;
+    }
+    container.innerHTML = RW.earnedCoupons.slice(-5).reverse().map(c => `
+      <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:1.3rem;">${c.emoji || '🎉'}</span>
+        <div style="flex:1;">
+          <strong style="font-size:.85rem;color:var(--success);letter-spacing:.5px;">${c.code}</strong>
+          <p style="font-size:.72rem;color:var(--text3);">${c.reward}</p>
+        </div>
+        <span style="font-size:.65rem;padding:.2rem .5rem;border-radius:8px;background:${c.rarity==='legendary'?'rgba(245,158,11,.15)':c.rarity==='rare'?'rgba(139,92,246,.15)':'rgba(16,185,129,.15)'};color:${c.rarity==='legendary'?'var(--warning)':c.rarity==='rare'?'var(--primary-light)':'var(--success)'};font-weight:600;">${c.rarity.toUpperCase()}</span>
+      </div>
+    `).join('');
   },
 
   setupLogout() {
     const doLogout = () => {
       localStorage.removeItem('activepulse_profile');
       localStorage.removeItem('activepulse_user');
+      localStorage.removeItem('activepulse_rewards_v2');
       window.location.reload();
     };
     const logoutBtn = document.getElementById('btn-logout');
     const profileLogoutBtn = document.getElementById('btn-profile-logout');
-    if (logoutBtn) logoutBtn.addEventListener('click', doLogout);
-    if (profileLogoutBtn) profileLogoutBtn.addEventListener('click', doLogout);
+    if (logoutBtn && !logoutBtn._bound) { logoutBtn._bound = true; logoutBtn.addEventListener('click', doLogout); }
+    if (profileLogoutBtn && !profileLogoutBtn._bound) { profileLogoutBtn._bound = true; profileLogoutBtn.addEventListener('click', doLogout); }
   },
 
   setupNav() {

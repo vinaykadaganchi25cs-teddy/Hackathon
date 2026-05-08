@@ -22,13 +22,20 @@ window.ActivePulse.Rewards = {
     { code: 'MOVEMORE25', reward: '25% Off Fitness Gear', rarity: 'common', emoji: '🏋️' },
     { code: 'HYDRATE15', reward: '15% Off Premium Water Bottles', rarity: 'common', emoji: '💧' },
     { code: 'YOGA20', reward: '20% Off Yoga Mat & Accessories', rarity: 'common', emoji: '🧘' },
+    { code: 'STEPUP10', reward: '10% Off Running Shoes', rarity: 'common', emoji: '👟' },
+    { code: 'GREENTEA', reward: '15% Off Organic Green Tea', rarity: 'common', emoji: '🍵' },
     { code: 'FLEXFIT30', reward: '30% Off Online Yoga Classes', rarity: 'rare', emoji: '🎯' },
     { code: 'WELLNESS50', reward: '50% Off Wellness App Premium', rarity: 'rare', emoji: '⭐' },
     { code: 'FITBAND40', reward: '40% Off Smart Fitness Band', rarity: 'rare', emoji: '⌚' },
+    { code: 'MASSAGEPRO', reward: '35% Off Massage Gun', rarity: 'rare', emoji: '💆' },
+    { code: 'ERGODESK', reward: '25% Off Standing Desk', rarity: 'rare', emoji: '🖥️' },
     { code: 'CHAMPION100', reward: 'FREE Month Gym Membership', rarity: 'legendary', emoji: '🏆' },
     { code: 'VITABOOST', reward: 'FREE Vitamin Subscription Box', rarity: 'legendary', emoji: '🎁' },
-    { code: 'ULTRAMOVE', reward: 'FREE Ergonomic Desk Chair', rarity: 'legendary', emoji: '👑' }
+    { code: 'ULTRAMOVE', reward: 'FREE Ergonomic Desk Chair', rarity: 'legendary', emoji: '👑' },
+    { code: 'FITWATCH', reward: 'FREE Premium Fitness Watch', rarity: 'legendary', emoji: '⌚' }
   ],
+
+  SCRATCH_COST: 30, // Points needed per scratch card
 
   totalPoints: 0,
   earnedCoupons: [],
@@ -62,22 +69,15 @@ window.ActivePulse.Rewards = {
     if (!task) return null;
 
     if (task.done) {
-      // Untick
       task.done = false;
       this.totalPoints = Math.max(0, this.totalPoints - task.points);
-      // Recalculate scratch cards
-      const completed = this.tasks.filter(t => t.done).length;
-      this.scratchCardsAvailable = Math.floor(completed / 2) - this.earnedCoupons.length;
-      if (this.scratchCardsAvailable < 0) this.scratchCardsAvailable = 0;
     } else {
-      // Tick
       task.done = true;
       this.totalPoints += task.points;
-      const completed = this.tasks.filter(t => t.done).length;
-      const totalCards = Math.floor(completed / 2);
-      this.scratchCardsAvailable = totalCards - this.earnedCoupons.length;
-      if (this.scratchCardsAvailable < 0) this.scratchCardsAvailable = 0;
     }
+    // Points-based scratch cards: every 30 points = 1 card
+    const totalEarned = Math.floor(this.totalPoints / this.SCRATCH_COST);
+    this.scratchCardsAvailable = Math.max(0, totalEarned - this.earnedCoupons.length);
     this.save();
     return task;
   },
