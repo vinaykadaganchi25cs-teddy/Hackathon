@@ -1,2 +1,2 @@
 # Hackathon
-My First Hackathon with Ni**ers.
+My First Hackathon.
