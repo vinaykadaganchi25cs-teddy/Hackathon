@@ -55,48 +55,187 @@ window.ActivePulse.App = {
 
   // === LOGIN ===
   checkLogin() {
-    const savedUser = localStorage.getItem('activepulse_user');
+    const saved = localStorage.getItem('activepulse_profile');
     const loginScreen = document.getElementById('login-screen');
-    if (savedUser) {
-      this.setLoggedIn(savedUser);
-      if (loginScreen) loginScreen.classList.add('hidden-login');
+    if (saved) {
+      try {
+        const profile = JSON.parse(saved);
+        this.setLoggedIn(profile);
+        if (loginScreen) loginScreen.classList.add('hidden-login');
+      } catch(e) {
+        localStorage.removeItem('activepulse_profile');
+      }
       return;
     }
-    const googleBtn = document.getElementById('btn-google-login');
-    const guestBtn = document.getElementById('btn-guest-login');
-    const nameInput = document.getElementById('login-name');
+
+    // === LOGIN TAB SWITCHING ===
+    const tabEmail = document.getElementById('tab-email');
+    const tabGoogle = document.getElementById('tab-google');
+    const formEmail = document.getElementById('login-form-email');
+    const formGoogle = document.getElementById('login-form-google');
+
+    if (tabEmail) tabEmail.addEventListener('click', () => {
+      tabEmail.classList.add('active'); tabGoogle.classList.remove('active');
+      formEmail.classList.remove('hidden'); formGoogle.classList.add('hidden');
+    });
+    if (tabGoogle) tabGoogle.addEventListener('click', () => {
+      tabGoogle.classList.add('active'); tabEmail.classList.remove('active');
+      formGoogle.classList.remove('hidden'); formEmail.classList.add('hidden');
+    });
+
     const loader = document.getElementById('login-loader');
 
-    const doLogin = (fallbackName) => {
-      const name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : fallbackName;
-      // Show loading animation
-      if (googleBtn) googleBtn.style.display = 'none';
-      if (guestBtn) guestBtn.style.display = 'none';
-      if (nameInput) nameInput.style.display = 'none';
-      if (loader) loader.classList.remove('hidden');
+    // === EMAIL/PASSWORD LOGIN ===
+    const emailBtn = document.getElementById('btn-email-login');
+    if (emailBtn) emailBtn.addEventListener('click', () => {
+      const name = document.getElementById('login-name')?.value.trim() || 'User';
+      const email = document.getElementById('login-email')?.value.trim() || '';
+      const pass = document.getElementById('login-password')?.value || '';
+      if (!name) return;
+      this._animateLogin(loginScreen, loader, formEmail, { name, email, method: 'email' });
+    });
 
-      setTimeout(() => {
-        localStorage.setItem('activepulse_user', name);
-        this.setLoggedIn(name);
-        if (loginScreen) {
-          loginScreen.style.opacity = '0';
-          loginScreen.style.transition = 'opacity 0.5s ease';
-          setTimeout(() => loginScreen.classList.add('hidden-login'), 500);
-        }
-      }, 1500);
-    };
+    // === GOOGLE LOGIN ===
+    const googleBtn = document.getElementById('btn-google-login');
+    if (googleBtn) googleBtn.addEventListener('click', () => {
+      const name = document.getElementById('login-name-google')?.value.trim() || 'User';
+      this._animateLogin(loginScreen, loader, formGoogle, { name, email: name.toLowerCase().replace(/\s/g,'.') + '@gmail.com', method: 'google' });
+    });
 
-    if (googleBtn) googleBtn.addEventListener('click', () => doLogin('User'));
-    if (guestBtn) guestBtn.addEventListener('click', () => doLogin('Guest'));
+    // === LOGOUT HANDLERS ===
+    this.setupLogout();
   },
 
-  setLoggedIn(name) {
+  _animateLogin(loginScreen, loader, form, profile) {
+    if (form) form.style.display = 'none';
+    const otherForm = form?.id === 'login-form-email' ? document.getElementById('login-form-google') : document.getElementById('login-form-email');
+    if (otherForm) otherForm.style.display = 'none';
+    const tabs = document.querySelector('.login-tabs');
+    if (tabs) tabs.style.display = 'none';
+    if (loader) loader.classList.remove('hidden');
+
+    setTimeout(() => {
+      profile.joinedAt = new Date().toLocaleDateString();
+      profile.pfp = null;
+      localStorage.setItem('activepulse_profile', JSON.stringify(profile));
+      this.setLoggedIn(profile);
+      if (loginScreen) {
+        loginScreen.style.opacity = '0';
+        loginScreen.style.transition = 'opacity 0.5s ease';
+        setTimeout(() => loginScreen.classList.add('hidden-login'), 500);
+      }
+    }, 1500);
+  },
+
+  setLoggedIn(profile) {
+    const name = typeof profile === 'string' ? profile : profile.name;
+    const email = typeof profile === 'string' ? '' : (profile.email || '');
+    const method = typeof profile === 'string' ? 'guest' : (profile.method || 'guest');
+
+    // Sidebar greeting
     const greet = document.getElementById('user-greeting');
     const displayName = document.getElementById('user-display-name');
     const avatar = document.getElementById('user-avatar');
     if (greet) greet.classList.remove('hidden');
     if (displayName) displayName.textContent = name;
-    if (avatar) avatar.textContent = name.charAt(0).toUpperCase();
+    if (avatar) {
+      // Check for PFP
+      const pfp = typeof profile === 'object' ? profile.pfp : null;
+      if (pfp) {
+        avatar.innerHTML = `<img src="${pfp}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="pfp">`;
+      } else {
+        avatar.textContent = name.charAt(0).toUpperCase();
+      }
+    }
+
+    // Profile page
+    const pfpInitial = document.getElementById('profile-pic-initial');
+    const pfpImg = document.getElementById('profile-pic-img');
+    const profileName = document.getElementById('profile-name-display');
+    const profileEmail = document.getElementById('profile-email-display');
+    const profileMethod = document.getElementById('profile-method-display');
+    const profileJoined = document.getElementById('profile-joined');
+
+    if (profileName) profileName.textContent = name;
+    if (profileEmail) profileEmail.textContent = email || 'No email set';
+    const methodLabels = { email: '📧 Signed in with Email', google: '🔵 Signed in with Google', guest: '👤 Signed in as Guest' };
+    if (profileMethod) profileMethod.textContent = methodLabels[method] || methodLabels.guest;
+    if (profileJoined && typeof profile === 'object') profileJoined.textContent = profile.joinedAt || 'Today';
+
+    const pfp = typeof profile === 'object' ? profile.pfp : null;
+    if (pfp && pfpImg) {
+      pfpImg.src = pfp;
+      pfpImg.classList.remove('hidden');
+      if (pfpInitial) pfpInitial.style.display = 'none';
+    } else {
+      if (pfpInitial) { pfpInitial.style.display = ''; pfpInitial.textContent = name.charAt(0).toUpperCase(); }
+      if (pfpImg) pfpImg.classList.add('hidden');
+    }
+
+    // Update profile stats
+    const RW = window.ActivePulse.Rewards;
+    if (RW) {
+      const ptasks = document.getElementById('profile-tasks');
+      const pcoupons = document.getElementById('profile-coupons');
+      const ppoints = document.getElementById('profile-points');
+      if (ptasks) ptasks.textContent = RW.getCompletedCount();
+      if (pcoupons) pcoupons.textContent = RW.earnedCoupons.length;
+      if (ppoints) ppoints.textContent = RW.totalPoints;
+    }
+
+    // Setup profile handlers
+    this.setupProfile();
+  },
+
+  setupProfile() {
+    // PFP Upload
+    const pfpInput = document.getElementById('pfp-upload');
+    if (pfpInput && !pfpInput._bound) {
+      pfpInput._bound = true;
+      pfpInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target.result;
+          const saved = JSON.parse(localStorage.getItem('activepulse_profile') || '{}');
+          saved.pfp = dataUrl;
+          localStorage.setItem('activepulse_profile', JSON.stringify(saved));
+          this.setLoggedIn(saved);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Save profile edits
+    const saveBtn = document.getElementById('btn-save-profile');
+    if (saveBtn && !saveBtn._bound) {
+      saveBtn._bound = true;
+      saveBtn.addEventListener('click', () => {
+        const saved = JSON.parse(localStorage.getItem('activepulse_profile') || '{}');
+        const newName = document.getElementById('edit-name')?.value.trim();
+        const newEmail = document.getElementById('edit-email')?.value.trim();
+        if (newName) saved.name = newName;
+        if (newEmail) saved.email = newEmail;
+        localStorage.setItem('activepulse_profile', JSON.stringify(saved));
+        this.setLoggedIn(saved);
+        // Visual feedback
+        saveBtn.textContent = '✅ Saved!';
+        setTimeout(() => { saveBtn.textContent = '💾 Save Changes'; }, 1500);
+      });
+    }
+  },
+
+  setupLogout() {
+    const doLogout = () => {
+      localStorage.removeItem('activepulse_profile');
+      localStorage.removeItem('activepulse_user');
+      window.location.reload();
+    };
+    const logoutBtn = document.getElementById('btn-logout');
+    const profileLogoutBtn = document.getElementById('btn-profile-logout');
+    if (logoutBtn) logoutBtn.addEventListener('click', doLogout);
+    if (profileLogoutBtn) profileLogoutBtn.addEventListener('click', doLogout);
   },
 
   setupNav() {
