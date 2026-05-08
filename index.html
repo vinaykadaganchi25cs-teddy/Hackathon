@@ -284,7 +284,7 @@
         <!-- AI Camera Feed -->
         <div class="card camera-card">
           <div class="card-title">📷 AI Posture Camera <span id="camera-status" style="font-weight:400;font-size:.75rem;color:var(--text3);margin-left:8px;">Off</span></div>
-          <div class="camera-container">
+            <div class="camera-container" style="max-width:none;aspect-ratio:16/9;">
             <video id="camera-feed" autoplay playsinline muted class="camera-video"></video>
             <canvas id="pose-canvas" class="pose-overlay"></canvas>
             <div class="camera-placeholder" id="camera-placeholder">
@@ -307,8 +307,8 @@
             <div style="font-size:.7rem;color:var(--text3);margin-bottom:.3rem;">Screen Time + Inactive Time</div>
             <div class="big-timer" id="sedentary-timer" style="color:var(--danger);">00:00:00</div>
             <p style="font-size:0.75rem; color:var(--text2); margin-top:0.5rem;">
-              ⚠️ Counts <strong>all sitting time</strong> — typing, browsing, and idle.<br>
-              Only resets when camera sees you <strong>stand up</strong>
+              ⚠️ Counts <strong>all time at your desk</strong>.<br>
+              Only stops when you <strong>leave the camera</strong> (walk away)
             </p>
           </div>
 
@@ -486,7 +486,7 @@
           <div class="card mt-2" style="text-align:center;">
             <div class="card-title">Points Earned</div>
             <div class="card-value" style="color:var(--primary-light)" id="total-points">0</div>
-            <div class="card-subtitle">Complete 2 tasks = 1 scratch card</div>
+            <div class="card-subtitle">30 points = 1 scratch card</div>
           </div>
         </div>
         <div>
@@ -503,8 +503,14 @@
         </div>
       </div>
 
-      <h2 style="font-size:1.15rem;font-weight:700;margin:2rem 0 1rem;">⚠️ Health Risks if You Stay Inactive</h2>
-      <div id="health-risks-list"></div>
+      <!-- 3 Tiered Risk Sections -->
+      <h2 style="font-size:1.15rem;font-weight:700;margin:2rem 0 1rem;">⚠️ Health Risk Assessment</h2>
+      <div class="risk-tabs">
+        <button class="risk-tab active" data-tier="normal">🟢 Normal</button>
+        <button class="risk-tab" data-tier="moderate">🟡 Moderate</button>
+        <button class="risk-tab" data-tier="high">🔴 High</button>
+      </div>
+      <div id="risk-tiers-content"></div>
     </section>
 
     <!-- ===== RISK ASSESSMENT SECTION ===== -->

@@ -404,12 +404,14 @@ window.ActivePulse.App = {
       await CAM.startCamera();
 
       // Wire camera callbacks to sensor manager
+      // Standing at desk is still sedentary — only LEAVING counts as break
       CAM.onStandDetected = () => {
-        SM.cameraDetectedBreak('Standing detected by AI');
+        // Standing at desk = still at desk = timer continues
         this._updatePostureUI('standing', 100);
       };
       CAM.onAbsentDetected = () => {
-        SM.cameraDetectedBreak('Person left — break taken!');
+        // Person left camera = walked away = REAL break!
+        SM.cameraDetectedBreak('Person left \u2014 break taken!');
         this._updatePostureUI('absent', 0);
       };
       CAM.onPostureUpdate = (analysis) => {
@@ -787,7 +789,7 @@ window.ActivePulse.App = {
     if (!RW) return;
     this.renderTasks();
     this.renderScratchCards();
-    this.renderHealthRisks();
+    this.renderRiskTiers();
     this.renderEarnedCoupons();
     const ptsEl = document.getElementById('total-points');
     if (ptsEl) ptsEl.textContent = RW.totalPoints;
@@ -825,7 +827,7 @@ window.ActivePulse.App = {
     if (!container || !RW) return;
     if (countEl) countEl.textContent = RW.scratchCardsAvailable;
     if (RW.scratchCardsAvailable <= 0) {
-      container.innerHTML = '<div class="no-cards">🏆 Complete 2 tasks to earn a scratch card!</div>';
+      container.innerHTML = '<div class="no-cards">🏆 Earn 30 points to unlock a scratch card!</div>';
       return;
     }
     container.innerHTML = '';
@@ -888,23 +890,44 @@ window.ActivePulse.App = {
     `).join('');
   },
 
-  renderHealthRisks() {
+  renderRiskTiers() {
     const RW = window.ActivePulse.Rewards;
-    const container = document.getElementById('health-risks-list');
+    const container = document.getElementById('risk-tiers-content');
     if (!container || !RW) return;
-    const risks = RW.getHealthRisks();
-    container.innerHTML = risks.map(r => `
-      <div class="risk-warning-card">
-        <div class="risk-warning-header">
-          <span>${r.icon}</span>
-          <h3>${r.title}</h3>
+    const tiers = RW.getRiskTiers();
+    let activeTier = 'normal';
+
+    const renderTier = (tierKey) => {
+      activeTier = tierKey;
+      const tier = tiers[tierKey];
+      container.innerHTML = `
+        <div class="risk-tier-header" style="border-left:4px solid ${tier.color};padding:.75rem 1rem;margin-bottom:1rem;background:${tier.color}11;border-radius:0 var(--radius) var(--radius) 0;">
+          <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:.25rem;">${tier.title}</h3>
+          <p style="font-size:.82rem;color:var(--text2);font-style:italic;">${tier.subtitle}</p>
         </div>
-        <p>${r.desc}</p>
-        <div class="severity-bar">
-          <div class="severity-fill" style="width:${r.severity}%"></div>
-        </div>
-      </div>
-    `).join('');
+        ${tier.risks.map(r => `
+          <div class="risk-warning-card" style="border-left:3px solid ${tier.color};">
+            <div class="risk-warning-header">
+              <span>${r.icon}</span>
+              <h3>${r.title}</h3>
+            </div>
+            <p style="line-height:1.6;">${r.desc}</p>
+          </div>
+        `).join('')}
+      `;
+      // Update tab styles
+      document.querySelectorAll('.risk-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tier === tierKey);
+      });
+    };
+
+    // Default render
+    renderTier('normal');
+
+    // Tab click handlers
+    document.querySelectorAll('.risk-tab').forEach(tab => {
+      tab.addEventListener('click', () => renderTier(tab.dataset.tier));
+    });
   }
 };
 

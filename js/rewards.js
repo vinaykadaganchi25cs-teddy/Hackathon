@@ -105,16 +105,47 @@ window.ActivePulse.Rewards = {
     this.save();
   },
 
-  getHealthRisks() {
-    const completed = this.getCompletedCount();
-    return [
-      { icon: '🫀', title: 'Cardiovascular Disease', severity: Math.max(10, 90 - completed * 12), desc: 'Prolonged sitting increases heart disease risk by 147%. Blood flow slows, fatty acids accumulate in blood vessels.' },
-      { icon: '🦴', title: 'Musculoskeletal Damage', severity: Math.max(10, 85 - completed * 12), desc: 'Chronic sitting weakens back muscles, compresses spinal discs, and causes irreversible posture damage over time.' },
-      { icon: '🧠', title: 'Mental Health Decline', severity: Math.max(10, 70 - completed * 12), desc: 'Sedentary behavior increases risk of depression by 25% and anxiety by 20%. Movement releases endorphins your brain needs.' },
-      { icon: '⚖️', title: 'Obesity & Metabolic Syndrome', severity: Math.max(10, 80 - completed * 12), desc: 'Sitting burns only 1 cal/min. Prolonged inactivity disrupts insulin regulation and fat metabolism.' },
-      { icon: '🩸', title: 'Deep Vein Thrombosis', severity: Math.max(10, 75 - completed * 12), desc: 'Blood pooling in legs during extended sitting can form dangerous clots that may travel to lungs.' },
-      { icon: '😴', title: 'Chronic Fatigue', severity: Math.max(10, 65 - completed * 12), desc: 'Paradoxically, less movement = more fatigue. Your body needs movement to maintain energy levels.' }
-    ];
+  getRiskTiers() {
+    return {
+      normal: {
+        title: '🟢 Normal Risk — 1 Day Missed',
+        subtitle: 'These early signs may appear. They\'re usually reversible if you act soon.',
+        color: '#10b981',
+        risks: [
+          { icon: '🪑', title: 'Neck & Shoulder Stiffness', desc: 'You may start to feel tightness in your neck and upper shoulders from poor posture. This could develop into tension headaches if not addressed.' },
+          { icon: '😶‍🌫️', title: 'Reduced Concentration', desc: 'Your focus might dip after prolonged inactivity. Studies suggest sitting for 6+ hours may reduce cognitive performance by up to 15%.' },
+          { icon: '👁️', title: 'Eye Strain & Dryness', desc: 'Extended screen time without breaks could lead to digital eye strain, blurred vision, and discomfort that may persist into the evening.' },
+          { icon: '🥱', title: 'Mild Fatigue', desc: 'You might feel unusually tired despite sleeping well. Lack of movement can reduce blood oxygen levels, potentially leaving you sluggish.' },
+          { icon: '🍔', title: 'Snacking Urge', desc: 'Prolonged sitting may trigger idle snacking habits. This could contribute to excess calorie intake without you realizing it.' }
+        ]
+      },
+      moderate: {
+        title: '🟡 Moderate Risk — 3 to 7 Days Missed',
+        subtitle: 'Your body may be adapting to inactivity. These conditions could become harder to reverse.',
+        color: '#f59e0b',
+        risks: [
+          { icon: '🦴', title: 'Chronic Lower Back Pain', desc: 'Sitting for multiple days without movement may cause spinal disc compression. This could eventually lead to chronic pain that limits your mobility.' },
+          { icon: '⚖️', title: 'Metabolic Slowdown', desc: 'Your metabolism might slow by up to 50% after several sedentary days. Fat-burning enzyme activity could drop significantly, potentially affecting weight management.' },
+          { icon: '🩸', title: 'Blood Sugar Instability', desc: 'Insulin sensitivity may decrease after just a few days of inactivity. This could lead to energy crashes and increased hunger throughout the day.' },
+          { icon: '🧍', title: 'Posture Degradation', desc: 'Without regular movement, your shoulders may round forward and your hip flexors could tighten. These changes might become semi-permanent over time.' },
+          { icon: '😴', title: 'Sleep Quality Decline', desc: 'Physical inactivity during the day may disrupt your circadian rhythm, potentially causing difficulty falling asleep or staying asleep.' },
+          { icon: '💪', title: 'Early Muscle Weakening', desc: 'Core and leg muscles you don\'t use may begin to lose tone. This could affect your balance and make everyday tasks feel more tiring.' }
+        ]
+      },
+      high: {
+        title: '🔴 High Risk — 2+ Weeks Missed',
+        subtitle: 'Prolonged inactivity at this level is associated with serious health concerns. Please consider consulting a healthcare professional.',
+        color: '#ef4444',
+        risks: [
+          { icon: '🫀', title: 'Cardiovascular Disease Risk', desc: 'Research suggests prolonged sedentary behavior may increase heart disease risk by up to 147%. Blood flow slows, and fatty acid buildup in vessels could accelerate.' },
+          { icon: '🧬', title: 'Type 2 Diabetes Risk', desc: 'Studies indicate that extended inactivity could increase Type 2 diabetes risk by up to 112% due to impaired insulin regulation and glucose processing.' },
+          { icon: '🩸', title: 'Deep Vein Thrombosis (DVT)', desc: 'Blood pooling in the legs from extended sitting may lead to dangerous blood clots. In rare cases, these could travel to the lungs, causing a pulmonary embolism.' },
+          { icon: '🦴', title: 'Spinal Disc Damage', desc: 'Chronic sitting may compress spinal discs unevenly, potentially leading to herniation. This kind of structural damage can be very difficult to reverse.' },
+          { icon: '🧠', title: 'Depression & Anxiety Risk', desc: 'Sedentary behavior is associated with a 25% higher risk of depression and 20% higher anxiety risk. Lack of movement may reduce endorphin and serotonin production.' },
+          { icon: '💀', title: 'Muscle Atrophy', desc: 'Without regular use, major muscle groups may begin to waste. Studies suggest you could lose up to 1% of muscle mass per day when completely inactive.' }
+        ]
+      }
+    };
   },
 
   // === CONFETTI PARTY BOMB ===
