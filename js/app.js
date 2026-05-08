@@ -62,23 +62,32 @@ window.ActivePulse.App = {
       if (loginScreen) loginScreen.classList.add('hidden-login');
       return;
     }
-    // Setup login buttons
     const googleBtn = document.getElementById('btn-google-login');
     const guestBtn = document.getElementById('btn-guest-login');
     const nameInput = document.getElementById('login-name');
+    const loader = document.getElementById('login-loader');
 
-    if (googleBtn) googleBtn.addEventListener('click', () => {
-      const name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'User';
-      localStorage.setItem('activepulse_user', name);
-      this.setLoggedIn(name);
-      if (loginScreen) { loginScreen.style.animation = 'fadeIn .3s ease reverse'; setTimeout(() => loginScreen.classList.add('hidden-login'), 300); }
-    });
-    if (guestBtn) guestBtn.addEventListener('click', () => {
-      const name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'Guest';
-      localStorage.setItem('activepulse_user', name);
-      this.setLoggedIn(name);
-      if (loginScreen) { loginScreen.style.animation = 'fadeIn .3s ease reverse'; setTimeout(() => loginScreen.classList.add('hidden-login'), 300); }
-    });
+    const doLogin = (fallbackName) => {
+      const name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : fallbackName;
+      // Show loading animation
+      if (googleBtn) googleBtn.style.display = 'none';
+      if (guestBtn) guestBtn.style.display = 'none';
+      if (nameInput) nameInput.style.display = 'none';
+      if (loader) loader.classList.remove('hidden');
+
+      setTimeout(() => {
+        localStorage.setItem('activepulse_user', name);
+        this.setLoggedIn(name);
+        if (loginScreen) {
+          loginScreen.style.opacity = '0';
+          loginScreen.style.transition = 'opacity 0.5s ease';
+          setTimeout(() => loginScreen.classList.add('hidden-login'), 500);
+        }
+      }, 1500);
+    };
+
+    if (googleBtn) googleBtn.addEventListener('click', () => doLogin('User'));
+    if (guestBtn) guestBtn.addEventListener('click', () => doLogin('Guest'));
   },
 
   setLoggedIn(name) {
@@ -187,10 +196,12 @@ window.ActivePulse.App = {
 
   initMonitorView() {
     window.ActivePulse.AnalyticsEngine.createRealtimeChart();
+    if (window.ActivePulse.CameraAI) window.ActivePulse.CameraAI.init();
   },
 
-  startMonitoring() {
+  async startMonitoring() {
     const SM = window.ActivePulse.SensorManager;
+    const CAM = window.ActivePulse.CameraAI;
     SM.startMonitoring();
     this.monitoringActive = true;
 
@@ -200,18 +211,80 @@ window.ActivePulse.App = {
     if (btnStop) btnStop.classList.remove('hidden');
 
     const statusEl = document.getElementById('monitor-status-badge');
-    if (statusEl) statusEl.innerHTML = '<span class="status-dot yellow"></span> Detecting...';
+    if (statusEl) statusEl.innerHTML = '<span class="status-dot yellow"></span> Loading AI...';
+
+    // Hide camera placeholder
+    const placeholder = document.getElementById('camera-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+
+    // Start camera AI
+    if (CAM) {
+      await CAM.init();
+      await CAM.startCamera();
+
+      // Wire camera callbacks to sensor manager
+      CAM.onStandDetected = () => {
+        SM.cameraDetectedBreak('Standing detected by AI');
+        this._updatePostureUI('standing', 100);
+      };
+      CAM.onAbsentDetected = () => {
+        SM.cameraDetectedBreak('Person left — break taken!');
+        this._updatePostureUI('absent', 0);
+      };
+      CAM.onPostureUpdate = (analysis) => {
+        this._updatePostureUI(analysis.isSlouching ? 'slouching' : 'good', analysis.postureScore);
+        const scoreEl = document.getElementById('stat-posture-score');
+        if (scoreEl) {
+          scoreEl.textContent = analysis.postureScore + '/100';
+          scoreEl.style.color = analysis.postureScore >= 70 ? 'var(--success)' : 'var(--danger)';
+        }
+      };
+      CAM.onSlouchDetected = (score) => {
+        this._updatePostureUI('slouching', score);
+      };
+
+      if (statusEl) statusEl.innerHTML = '<span class="status-dot yellow"></span> AI Monitoring';
+    }
+  },
+
+  _updatePostureUI(status, score) {
+    const dot = document.getElementById('posture-dot');
+    const label = document.getElementById('posture-label');
+    const scoreEl = document.getElementById('posture-score-display');
+
+    if (dot) {
+      dot.className = 'posture-dot';
+      if (status === 'good') dot.classList.add('good');
+      else if (status === 'slouching') dot.classList.add('bad');
+      else if (status === 'standing') dot.classList.add('good');
+      else if (status === 'absent') dot.classList.add('warning');
+    }
+    if (label) {
+      const labels = {
+        good: '✅ Good Posture — Keep it up!',
+        slouching: '⚠️ Slouching Detected — Sit up straight!',
+        standing: '🧍 Standing — Break counted!',
+        absent: '👤 Person not detected — Did you walk away?'
+      };
+      label.textContent = labels[status] || 'Analyzing...';
+    }
+    if (scoreEl) scoreEl.textContent = score + '/100';
   },
 
   stopMonitoring() {
     const SM = window.ActivePulse.SensorManager;
+    const CAM = window.ActivePulse.CameraAI;
     SM.stopMonitoring();
+    if (CAM) CAM.stopCamera();
     this.monitoringActive = false;
 
     const btn = document.getElementById('btn-start-monitor');
     const btnStop = document.getElementById('btn-stop-monitor');
     if (btn) btn.classList.remove('hidden');
     if (btnStop) btnStop.classList.add('hidden');
+
+    const placeholder = document.getElementById('camera-placeholder');
+    if (placeholder) placeholder.style.display = '';
 
     const statusEl = document.getElementById('monitor-status-badge');
     if (statusEl) {
@@ -223,29 +296,23 @@ window.ActivePulse.App = {
   updateMonitorUI(point) {
     const SM = window.ActivePulse.SensorManager;
 
-    // Status badge
+    // Status badge — always shows sedentary (camera handles breaks)
     const statusEl = document.getElementById('monitor-status-badge');
     if (statusEl) {
-      const statusMap = {
-        active: { class: 'active', dot: 'green', text: 'Active' },
-        light: { class: 'light', dot: 'yellow', text: 'Light Movement' },
-        sedentary: { class: 'sedentary', dot: 'red', text: 'Sedentary' }
-      };
-      const s = statusMap[point.status] || statusMap.light;
-      statusEl.className = `status-badge ${s.class}`;
-      statusEl.innerHTML = `<span class="status-dot ${s.dot}"></span> ${s.text}`;
+      statusEl.className = 'status-badge sedentary';
+      statusEl.innerHTML = '<span class="status-dot red"></span> Sedentary (Sitting)';
     }
 
-    // Sedentary timer
+    // Sedentary timer (continuous, never resets from keyboard/mouse)
     const timerEl = document.getElementById('sedentary-timer');
     if (timerEl) {
-      timerEl.textContent = SM.formatTime(point.sedentarySeconds);
+      timerEl.textContent = SM.formatTime(SM.consecutiveSedentary);
       timerEl.className = 'big-timer';
-      if (point.sedentarySeconds > 2700) timerEl.classList.add('danger');
-      else if (point.sedentarySeconds > 1800) timerEl.classList.add('warning');
+      if (SM.consecutiveSedentary > 2700) timerEl.classList.add('danger');
+      else if (SM.consecutiveSedentary > 1800) timerEl.classList.add('warning');
     }
 
-    // Intensity meter
+    // Input activity meter (for chart visualization only)
     const fillEl = document.getElementById('intensity-fill');
     if (fillEl) {
       const pct = Math.min(100, (point.magnitude / 4) * 100);
@@ -256,8 +323,7 @@ window.ActivePulse.App = {
     const stats = SM.getSessionStats();
     const el = (id) => document.getElementById(id);
     if (el('stat-session-duration')) el('stat-session-duration').textContent = SM.formatTime(stats.totalSeconds);
-    if (el('stat-session-active')) el('stat-session-active').textContent = SM.formatTime(stats.activeSeconds);
-    if (el('stat-session-sedentary')) el('stat-session-sedentary').textContent = SM.formatTime(stats.totalSeconds - stats.activeSeconds - stats.lightSeconds);
+    if (el('stat-session-sedentary')) el('stat-session-sedentary').textContent = SM.formatTime(stats.sedentarySeconds);
     if (el('stat-session-breaks')) el('stat-session-breaks').textContent = stats.breaksTaken;
   },
 

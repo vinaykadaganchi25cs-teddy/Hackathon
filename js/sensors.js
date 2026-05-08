@@ -1,240 +1,177 @@
 /* ========================================
-   Active Pulse — Sensor Manager v2
-   Fixed desktop detection + responsive UI
+   Active Pulse — Sensor Manager v3
+   Sedentary timer: NEVER resets from mouse/keyboard
+   Only resets when Camera AI detects standing/absent
    ======================================== */
 
 window.ActivePulse = window.ActivePulse || {};
 
 window.ActivePulse.SensorManager = {
   isMonitoring: false,
-  hasPermission: false,
-  useFallback: false,
-  currentStatus: 'unknown',
+  useFallback: true,
   currentMagnitude: 0,
-  sedentarySeconds: 0,
-  activeSeconds: 0,
-  lightSeconds: 0,
+
+  // === SEDENTARY TIMER (runs continuously, camera-only reset) ===
+  sedentarySeconds: 0,        // Total seconds sitting since monitoring started
+  consecutiveSedentary: 0,    // Continuous sitting streak (for 60-min alert)
   breaksTaken: 0,
-  sessionStart: null,
-  lastMovement: Date.now(),
+  lastBreakReset: null,
+
+  // === INPUT ACTIVITY (for chart visualization only, does NOT affect timer) ===
+  inputActivity: 0,           // Current input activity level (0-5)
+  lastInputTime: 0,
   lastMouseX: 0,
   lastMouseY: 0,
+
+  // === Session tracking ===
+  sessionStart: null,
   realtimeBuffer: [],
   sedentaryTimer: null,
   dataInterval: null,
+
+  // Callbacks
   onStatusChange: null,
   onDataUpdate: null,
   onBreakNeeded: null,
-  consecutiveSedentary: 0,
 
-  SEDENTARY_THRESHOLD: 0.5,
-  LIGHT_THRESHOLD: 2.0,
-  IDLE_MS: 2000,
-  BREAK_INTERVAL: 60 * 60,
+  BREAK_INTERVAL: 60 * 60, // 60 minutes
 
   init() {
-    if (window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function') {
-      this.useFallback = false;
-    } else if (window.DeviceMotionEvent) {
-      // Try to use it, but test if we actually get data
-      this.useFallback = false;
-      this._testMotionSupport();
-    } else {
-      this.useFallback = true;
-    }
+    // Sensor manager is always desktop-fallback now
+    // Camera AI handles the real posture/standing detection
+    this.useFallback = true;
   },
 
-  _testMotionSupport() {
-    let gotData = false;
-    const handler = (e) => {
-      const a = e.accelerationIncludingGravity;
-      if (a && (a.x !== null || a.y !== null || a.z !== null)) {
-        gotData = true;
-      }
-    };
-    window.addEventListener('devicemotion', handler);
-    setTimeout(() => {
-      window.removeEventListener('devicemotion', handler);
-      if (!gotData) this.useFallback = true;
-    }, 1000);
-  },
-
-  async requestPermission() {
-    if (typeof DeviceMotionEvent.requestPermission === 'function') {
-      try {
-        const r = await DeviceMotionEvent.requestPermission();
-        this.hasPermission = r === 'granted';
-        return this.hasPermission;
-      } catch (e) { this.useFallback = true; return false; }
-    }
-    this.hasPermission = true;
-    return true;
-  },
-
-  async startMonitoring() {
+  startMonitoring() {
     if (this.isMonitoring) return;
     this.isMonitoring = true;
     this.sessionStart = Date.now();
     this.sedentarySeconds = 0;
-    this.activeSeconds = 0;
-    this.lightSeconds = 0;
-    this.breaksTaken = 0;
     this.consecutiveSedentary = 0;
-    this.lastMovement = Date.now();
+    this.breaksTaken = 0;
+    this.inputActivity = 0;
+    this.lastInputTime = Date.now();
+    this.lastBreakReset = Date.now();
 
-    if (!this.useFallback) {
-      await this.requestPermission();
-      if (this.hasPermission) {
-        window.addEventListener('devicemotion', this._boundMotion = this._handleMotion.bind(this));
-        // Also add desktop fallback as supplement
-        this._setupDesktopFallback();
-      } else {
-        this.useFallback = true;
-      }
-    }
+    // Setup input listeners (for chart only, NOT for timer)
+    this._setupInputListeners();
 
-    if (this.useFallback) {
-      this._setupDesktopFallback();
-    }
-
-    this.sedentaryTimer = setInterval(() => this._updateStatus(), 1000);
+    // Tick every second
+    this.sedentaryTimer = setInterval(() => this._tick(), 1000);
     this.dataInterval = setInterval(() => this._emitData(), 1000);
-    this._setStatus('light');
   },
 
   stopMonitoring() {
     this.isMonitoring = false;
-    if (this._boundMotion) window.removeEventListener('devicemotion', this._boundMotion);
-    this._removeDesktopFallback();
+    this._removeInputListeners();
     clearInterval(this.sedentaryTimer);
     clearInterval(this.dataInterval);
     this.sedentaryTimer = null;
     this.dataInterval = null;
   },
 
-  resetBreakTimer() {
-    this.consecutiveSedentary = 0;
-    this.breaksTaken++;
-  },
-
-  _handleMotion(event) {
-    const acc = event.accelerationIncludingGravity || event.acceleration;
-    if (!acc) return;
-    const x = acc.x || 0, y = acc.y || 0, z = acc.z || 0;
-    this.currentMagnitude = Math.abs(Math.sqrt(x*x + y*y + z*z) - 9.8);
-    if (this.currentMagnitude > this.SEDENTARY_THRESHOLD) {
-      this.lastMovement = Date.now();
-    }
-  },
-
-  _boundDesktopHandlers: null,
-
-  _setupDesktopFallback() {
-    this._boundDesktopHandlers = {
-      mousemove: (e) => {
-        const dx = Math.abs(e.clientX - this.lastMouseX);
-        const dy = Math.abs(e.clientY - this.lastMouseY);
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        this.lastMouseX = e.clientX;
-        this.lastMouseY = e.clientY;
-        if (dist > 3) {
-          this.lastMovement = Date.now();
-          // Map mouse speed to magnitude (bigger movements = higher magnitude)
-          this.currentMagnitude = Math.min(4.5, dist * 0.08);
-        }
-      },
-      keydown: () => {
-        this.lastMovement = Date.now();
-        this.currentMagnitude = 1.8 + Math.random() * 0.8;
-      },
-      click: () => {
-        this.lastMovement = Date.now();
-        this.currentMagnitude = 2.0 + Math.random() * 1.0;
-      },
-      scroll: () => {
-        this.lastMovement = Date.now();
-        this.currentMagnitude = 1.2 + Math.random() * 0.6;
-      },
-      touchstart: () => {
-        this.lastMovement = Date.now();
-        this.currentMagnitude = 2.5 + Math.random() * 1.0;
-      }
-    };
-    Object.entries(this._boundDesktopHandlers).forEach(([evt, fn]) => {
-      document.addEventListener(evt, fn, { passive: true });
-    });
-  },
-
-  _removeDesktopFallback() {
-    if (this._boundDesktopHandlers) {
-      Object.entries(this._boundDesktopHandlers).forEach(([evt, fn]) => {
-        document.removeEventListener(evt, fn);
-      });
-      this._boundDesktopHandlers = null;
-    }
-  },
-
-  _updateStatus() {
+  // === CALLED BY CAMERA AI ONLY ===
+  // This is the ONLY way to reset the sedentary timer
+  cameraDetectedBreak(reason) {
     if (!this.isMonitoring) return;
-    const idleMs = Date.now() - this.lastMovement;
+    this.breaksTaken++;
+    this.consecutiveSedentary = 0;
+    this.lastBreakReset = Date.now();
+    console.log(`[SensorManager] Break detected by camera: ${reason}`);
 
-    // Gradually decay magnitude when idle
-    if (idleMs > 500) {
-      this.currentMagnitude *= 0.88;
-      if (this.currentMagnitude < 0.08) this.currentMagnitude = 0.03 + Math.random() * 0.05;
+    // Notify UI
+    if (this.onStatusChange) {
+      this.onStatusChange('break', 0);
+    }
+  },
+
+  // === PRIVATE: Every-second tick ===
+  _tick() {
+    if (!this.isMonitoring) return;
+
+    // ALWAYS increment sedentary counters
+    // Mouse/keyboard does NOT stop this. Only cameraDetectedBreak() can reset it.
+    this.sedentarySeconds++;
+    this.consecutiveSedentary++;
+
+    // Decay input activity (for chart visualization)
+    const idleMs = Date.now() - this.lastInputTime;
+    if (idleMs > 1000) {
+      this.inputActivity *= 0.9;
+      if (this.inputActivity < 0.05) this.inputActivity = 0.02 + Math.random() * 0.03;
     }
 
-    let newStatus;
-    if (idleMs < this.IDLE_MS) {
-      newStatus = this.currentMagnitude >= this.LIGHT_THRESHOLD ? 'active' : 'light';
-    } else if (idleMs < this.IDLE_MS * 4) {
-      newStatus = 'light';
-    } else {
-      newStatus = 'sedentary';
-    }
-
-    // Update counters
-    if (newStatus === 'sedentary') {
-      this.consecutiveSedentary++;
-    } else if (newStatus === 'active') {
-      this.activeSeconds++;
-      this.consecutiveSedentary = 0;
-    } else {
-      this.lightSeconds++;
-      if (this.consecutiveSedentary > 0 && idleMs < this.IDLE_MS * 2) {
-        this.consecutiveSedentary = 0;
-      }
-    }
-
-    // Break alert at 60 min continuous sedentary
+    // 60-minute break alert
     if (this.consecutiveSedentary >= this.BREAK_INTERVAL) {
       if (this.onBreakNeeded) this.onBreakNeeded();
-      this.consecutiveSedentary = 0;
+      // Don't auto-reset! Only camera can reset.
     }
 
-    if (newStatus !== this.currentStatus) {
-      this.currentStatus = newStatus;
-      if (this.onStatusChange) this.onStatusChange(newStatus, this.currentMagnitude);
+    // Fire status change
+    if (this.onStatusChange) {
+      // Status is ALWAYS sedentary (sitting) — input activity is separate
+      this.onStatusChange('sedentary', this.inputActivity);
     }
-    this.currentStatus = newStatus;
   },
 
-  _setStatus(s) { this.currentStatus = s; },
-
+  // === PRIVATE: Emit data for real-time chart ===
   _emitData() {
     if (!this.isMonitoring) return;
     const point = {
       timestamp: Date.now(),
-      magnitude: Math.round(this.currentMagnitude * 100) / 100,
-      status: this.currentStatus,
+      magnitude: Math.round(this.inputActivity * 100) / 100,
+      status: 'sedentary',  // Always sedentary unless camera says otherwise
       sedentarySeconds: this.consecutiveSedentary,
-      activeSeconds: this.activeSeconds,
-      lightSeconds: this.lightSeconds
+      inputActivity: this.inputActivity
     };
     this.realtimeBuffer.push(point);
     if (this.realtimeBuffer.length > 120) this.realtimeBuffer.shift();
     if (this.onDataUpdate) this.onDataUpdate(point);
     if (window.ActivePulse.DataManager) window.ActivePulse.DataManager.addRealtimePoint(point);
+  },
+
+  // === INPUT LISTENERS (chart visualization only) ===
+  _boundHandlers: null,
+
+  _setupInputListeners() {
+    this._boundHandlers = {
+      mousemove: (e) => {
+        const dx = Math.abs(e.clientX - this.lastMouseX);
+        const dy = Math.abs(e.clientY - this.lastMouseY);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        this.lastMouseX = e.clientX;
+        this.lastMouseY = e.clientY;
+        if (dist > 3) {
+          this.lastInputTime = Date.now();
+          this.inputActivity = Math.min(4.5, dist * 0.08);
+          // NOTE: This does NOT reset sedentarySeconds or consecutiveSedentary
+        }
+      },
+      keydown: () => {
+        this.lastInputTime = Date.now();
+        this.inputActivity = 1.8 + Math.random() * 0.8;
+      },
+      click: () => {
+        this.lastInputTime = Date.now();
+        this.inputActivity = 2.0 + Math.random() * 1.0;
+      },
+      scroll: () => {
+        this.lastInputTime = Date.now();
+        this.inputActivity = 1.2 + Math.random() * 0.6;
+      }
+    };
+    Object.entries(this._boundHandlers).forEach(([evt, fn]) => {
+      document.addEventListener(evt, fn, { passive: true });
+    });
+  },
+
+  _removeInputListeners() {
+    if (this._boundHandlers) {
+      Object.entries(this._boundHandlers).forEach(([evt, fn]) => {
+        document.removeEventListener(evt, fn);
+      });
+      this._boundHandlers = null;
+    }
   },
 
   getSessionDuration() {
@@ -246,11 +183,10 @@ window.ActivePulse.SensorManager = {
     const total = this.getSessionDuration();
     return {
       totalSeconds: total,
-      activeSeconds: this.activeSeconds,
-      lightSeconds: this.lightSeconds,
-      sedentarySeconds: total - this.activeSeconds - this.lightSeconds,
+      sedentarySeconds: this.sedentarySeconds,
+      consecutiveSedentary: this.consecutiveSedentary,
       breaksTaken: this.breaksTaken,
-      currentStreak: this.consecutiveSedentary
+      inputActivity: this.inputActivity
     };
   },
 
@@ -258,6 +194,6 @@ window.ActivePulse.SensorManager = {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
 };
