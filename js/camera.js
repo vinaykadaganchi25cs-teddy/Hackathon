@@ -61,6 +61,8 @@ window.ActivePulse.CameraAI = {
     this.canvas = document.getElementById('pose-canvas');
     this.video = document.getElementById('camera-feed');
     if (this.canvas) this.ctx = this.canvas.getContext('2d');
+    // Pre-load model in background so it's ready when user clicks Start
+    this.loadModel();
   },
 
   async loadModel() {
@@ -95,25 +97,29 @@ window.ActivePulse.CameraAI = {
     if (this.isRunning) return;
     try {
       const statusEl = document.getElementById('camera-status');
-      if (statusEl) statusEl.textContent = 'Requesting camera...';
+      if (statusEl) statusEl.textContent = 'Starting camera...';
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: 'user' },
+      // Start BOTH camera stream and model load simultaneously
+      const streamPromise = navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
         audio: false
       });
+      const modelPromise = this.isModelLoaded ? Promise.resolve(true) : this.loadModel();
+
+      // Wait for both in parallel
+      const [stream, modelOk] = await Promise.all([streamPromise, modelPromise]);
+
+      if (!modelOk) {
+        if (statusEl) statusEl.textContent = 'AI Model failed';
+        return;
+      }
 
       this.video.srcObject = stream;
       await this.video.play();
 
-      // Set canvas size to match video
+      // Match canvas to video
       this.canvas.width = this.video.videoWidth || 640;
       this.canvas.height = this.video.videoHeight || 480;
-
-      // Load model if not loaded
-      if (!this.isModelLoaded) {
-        const loaded = await this.loadModel();
-        if (!loaded) return;
-      }
 
       this.isRunning = true;
       this.baselineShoulderY = null;
